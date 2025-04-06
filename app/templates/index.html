@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Warehouse Layout Optimiser</h2>
+    <p>Welcome to the Warehouse Layout Optimizer, a simulation tool for optimizing warehouse layouts using agent-based modeling.</p>
+    
+    <div class="start-button-container">
+        <a href="{{ url_for('config') }}" class="button">Start</a>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Select Configuration</h2>
+    
+    <form action="{{ url_for('entities') }}" method="post">
+        <div class="entities-grid">
+            <h3>Entities:</h3>
+            <table>
+                <tr>
+                    <th>Entity</th>
+                    <th>Amount</th>
+                </tr>
+                <tr>
+                    <td>Shelf</td>
+                    <td>
+                        <select name="shelves">
+                            <option value="2">2</option>
+                            <option value="4" selected>4</option>
+                            <option value="6">6</option>
+                            <option value="8">8</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td>Station</td>
+                    <td>
+                        <select name="stations">
+                            <option value="1">1</option>
+                            <option value="2" selected>2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                        </select>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- <div class="slider-section">
+                <h3>Pace:</h3>
+                <input type="range" name="pace" min="0" max="100" value="50" class="slider" id="paceSlider">
+                <span id="paceValue">50</span>
+            </div>
+            
+            <div class="slider-section">
+                <h3>Number of Boxes:</h3>
+                <input type="range" name="num_boxes" min="10" max="100" value="50" class="slider" id="boxesSlider">
+                <span id="boxesValue">50</span>
+            </div>
+            
+            <div class="slider-section">
+                <h3>Number of Agents:</h3>
+                <input type="range" name="num_agents" min="1" max="20" value="5" class="slider" id="agentsSlider">
+                <span id="agentsValue">5</span>
+            </div> -->
+        </div>
+        
+        <div class="button-container">
+            <button type="submit" class="button">Proceed</button>
+            <a href="{{ url_for('hyperparameters') }}" class="secondary-button">Access Hyperparameters</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Update slider values
+    
+    // const paceSlider = document.getElementById("paceSlider");
+    // const paceValue = document.getElementById("paceValue");
+    // paceSlider.oninput = function() {
+    //     paceValue.textContent = this.value;
+    // }
+    
+    // const boxesSlider = document.getElementById("boxesSlider");
+    // const boxesValue = document.getElementById("boxesValue");
+    // boxesSlider.oninput = function() {
+    //     boxesValue.textContent = this.value;
+    // }
+    
+    // const agentsSlider = document.getElementById("agentsSlider");
+    // const agentsValue = document.getElementById("agentsValue");
+    // agentsSlider.oninput = function() {
+    //     agentsValue.textContent = this.value;
+    // }
+</script>
+{% endblock %}

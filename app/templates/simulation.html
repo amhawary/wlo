@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Warehouse Simulation</h2>
+    
+    <div class="simulation-container">
+        <div class="simulation-controls">
+            <button id="startButton" class="button">Start Simulation</button>
+            <button id="pauseButton" class="button" disabled>Pause</button>
+            <button id="resetButton" class="button" disabled>Reset</button>
+            
+            <div class="slider-section">
+                <h3>Pace:</h3>
+                <input type="range" min="0" max="100" value="50" class="slider" id="paceAdjustSlider">
+                <span id="paceAdjustValue">50</span>
+            </div>
+            
+            <div class="slider-section">
+                <h3>Number of Agents:</h3>
+                <input type="range" min="1" max="20" value="5" class="slider" id="agentsAdjustSlider">
+                <span id="agentsAdjustValue">5</span>
+            </div>
+        </div>
+        
+        <div class="mesa-viz">
+            <div id="mesa-container">
+                <p>Loading simulation...</p>
+                <!-- Mesa visualization will be embedded here -->
+                <iframe id="mesa-iframe" style="display:none; width:100%; height:600px; border:none;"></iframe>
+            </div>
+        </div>
+        
+        <div class="stats-panel">
+            <h3>Simulation Statistics</h3>
+            <div class="stat-box">
+                <div class="stat-item">
+                    <h4>Efficiency:</h4>
+                    <span id="efficiency-value">0%</span>
+                </div>
+                <div class="stat-item">
+                    <h4>Running Time:</h4>
+                    <span id="time-value">0s</span>
+                </div>
+                <div class="stat-item">
+                    <h4>Boxes Delivered:</h4>
+                    <span id="boxes-value">0/0</span>
+                </div>
+                <div class="stat-item">
+                    <h4>Agent Utilization:</h4>
+                    <span id="utilization-value">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Simulation ID from server
+    const simId = "{{ sim_id }}";
+    let simulationRunning = false;
+    let simulationPort = null;
+    
+    // UI elements
+    const startButton = document.getElementById("startButton");
+    const pauseButton = document.getElementById("pauseButton");
+    const resetButton = document.getElementById("resetButton");
+    const mesaIframe = document.getElementById("mesa-iframe");
+    
+    // Statistic elements
+    const efficiencyValue = document.getElementById("efficiency-value");
+    const timeValue = document.getElementById("time-value");
+    const boxesValue = document.getElementById("boxes-value");
+    const utilizationValue = document.getElementById("utilization-value");
+    
+    // Sliders
+    const paceSlider = document.getElementById("paceAdjustSlider");
+    const paceValue = document.getElementById("paceAdjustValue");
+    paceSlider.oninput = function() {
+        paceValue.textContent = this.value;
+        updateParameter("pace", this.value);
+    }
+    
+    const agentsSlider = document.getElementById("agentsAdjustSlider");
+    const agentsValue = document.getElementById("agentsAdjustValue");
+    agentsSlider.oninput = function() {
+        agentsValue.textContent = this.value;
+        updateParameter("num_agents", this.value);
+    }
+    
+    // Start simulation
+    startButton.addEventListener("click", function() {
+        if (!simulationRunning) {
+            fetch("/api/start_simulation", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sim_id: simId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    simulationPort = data.port;
+                    mesaIframe.src = `http://localhost:${simulationPort}`;
+                    mesaIframe.style.display = "block";
+                    
+                    simulationRunning = true;
+                    startButton.disabled = true;
+                    pauseButton.disabled = false;
+                    resetButton.disabled = false;
+                    
+                    // Start updating statistics
+                    startStatUpdates();
+                }
+            })
+            .catch(error => {
+                console.error("Error starting simulation:", error);
+            });
+        }
+    });
+    
+    // Pause simulation
+    pauseButton.addEventListener("click", function() {
+        if (simulationRunning) {
+            fetch("/api/pause_simulation", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sim_id: simId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    simulationRunning = false;
+                    pauseButton.textContent = "Resume";
+                }
+            })
+            .catch(error => {
+                console.error("Error pausing simulation:", error);
+            });
+        } else {
+            fetch("/api/resume_simulation", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ sim_id: simId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    simulationRunning = true;
+                    pauseButton.textContent = "Pause";
+                }
+            })
+            .catch(error => {
+                console.error("Error resuming simulation:", error);
+            });
+        }
+    });
+    
+    // Reset simulation
+    resetButton.addEventListener("click", function() {
+        fetch("/api/reset_simulation", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ sim_id: simId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                // Reset UI
+                simulationRunning = false;
+                startButton.disabled = false;
+                pauseButton.disabled = true;
+                resetButton.disabled = true;
+                pauseButton.textContent = "Pause";
+                
+                // Reset stats
+                efficiencyValue.textContent = "0%";
+                timeValue.textContent = "0s";
+                boxesValue.textContent = "0/0";
+                utilizationValue.textContent = "0%";
+                
+                // Hide iframe
+                mesaIframe.style.display = "none";
+            }
+        })
+        .catch(error => {
+            console.error("Error resetting simulation:", error);
+        });
+    });
+    
+    // Update parameter
+    function updateParameter(parameter, value) {
+        if (simulationRunning) {
+            fetch("/api/update_parameter", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    sim_id: simId,
+                    parameter: parameter,
+                    value: value
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log(`Updated ${parameter} to ${value}`);
+            })
+            .catch(error => {
+                console.error(`Error updating ${parameter}:`, error);
+            });
+        }
+    }
+    
+    // Start updating statistics
+    function startStatUpdates() {
+        // In a real implementation, this would fetch stats from the server
+        // For demo purposes, we'll simulate increasing values
+        
+        let time = 0;
+        let deliveredBoxes = 0;
+        let totalBoxes = parseInt(document.getElementById("agentsAdjustValue").textContent) * 10;
+        
+        const statsInterval = setInterval(() => {
+            if (!simulationRunning) {
+                return;
+            }
+            
+            time += 1;
+            if (time % 5 === 0 && deliveredBoxes < totalBoxes) {
+                deliveredBoxes += 1;
+            }
+            
+            const efficiency = totalBoxes > 0 ? (deliveredBoxes / totalBoxes) * 100 : 0;
+            const utilization = Math.min(80 + Math.random() * 20, 100);
+            
+            efficiencyValue.textContent = `${efficiency.toFixed(1)}%`;
+            timeValue.textContent = `${time}s`;
+            boxesValue.textContent = `${deliveredBoxes}/${totalBoxes}`;
+            utilizationValue.textContent = `${utilization.toFixed(1)}%`;
+            
+        }, 1000);
+    }
+</script>
+{% endblock %}

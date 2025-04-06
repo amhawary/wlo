@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>Select Configuration</h2>
+    
+    <form action="{{ url_for('config') }}" method="post">
+        <div class="config-grid">
+            <div class="config-section">
+                <h3>Select Type of Warehouse:</h3>
+                <select name="warehouse_type" required>
+                    <option value="standard">Standard</option>
+                    <option value="automotive">Automotive</option>
+                    <option value="retail">Retail</option>
+                    <option value="grocery">Grocery</option>
+                </select>
+            </div>
+            
+            <div class="config-section">
+                <h3>Select Shapes:</h3>
+                <select name="shapes" required>
+                    <option value="rectangular">Rectangular</option>
+                    <option value="circular">Circular</option>
+                    <option value="custom">Custom</option>
+                </select>
+            </div>
+            
+            <div class="config-section">
+                <h3>Select Size of Warehouse:</h3>
+                <select name="warehouse_size" required>
+                    <option value="10">Small (10x10)</option>
+                    <option value="20">Medium (20x20)</option>
+                    <option value="30">Large (30x30)</option>
+                    <option value="50">Extra Large (50x50)</option>
+                </select>
+            </div>
+            
+            <div class="config-section">
+                <h3>Select Model:</h3>
+                <select name="model" required>
+                    <option value="efficiency">Efficiency</option>
+                    <option value="throughput">Throughput</option>
+                    <option value="costoptimized">Cost-Optimized</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="proceed-button-container">
+            <button type="submit" class="button">Proceed</button>
+        </div>
+    </form>
+</div>
+{% endblock %}
