@@ -2,87 +2,111 @@
 
 {% block content %}
 <div class="container">
-    <h2>Select Configuration</h2>
-    
-    <form action="{{ url_for('entities') }}" method="post">
-        <div class="entities-grid">
-            <h3>Entities:</h3>
-            <table>
-                <tr>
-                    <th>Entity</th>
-                    <th>Amount</th>
-                </tr>
-                <tr>
-                    <td>Shelf</td>
-                    <td>
-                        <select name="shelves">
-                            <option value="2">2</option>
-                            <option value="4" selected>4</option>
-                            <option value="6">6</option>
-                            <option value="8">8</option>
-                        </select>
-                    </td>
-                </tr>
-                <tr>
-                    <td>Station</td>
-                    <td>
-                        <select name="stations">
-                            <option value="1">1</option>
-                            <option value="2" selected>2</option>
-                            <option value="3">3</option>
-                            <option value="4">4</option>
-                        </select>
-                    </td>
-                </tr>
-            </table>
-            
-            <!-- <div class="slider-section">
-                <h3>Pace:</h3>
-                <input type="range" name="pace" min="0" max="100" value="50" class="slider" id="paceSlider">
-                <span id="paceValue">50</span>
-            </div>
-            
-            <div class="slider-section">
-                <h3>Number of Boxes:</h3>
-                <input type="range" name="num_boxes" min="10" max="100" value="50" class="slider" id="boxesSlider">
-                <span id="boxesValue">50</span>
-            </div>
-            
-            <div class="slider-section">
-                <h3>Number of Agents:</h3>
-                <input type="range" name="num_agents" min="1" max="20" value="5" class="slider" id="agentsSlider">
-                <span id="agentsValue">5</span>
-            </div> -->
-        </div>
-        
-        <div class="button-container">
-            <button type="submit" class="button">Proceed</button>
-            <a href="{{ url_for('hyperparameters') }}" class="secondary-button">Access Hyperparameters</a>
-        </div>
-    </form>
+  <h1>Select Configuration</h1>
+  <h2>Define Entity Requirements</h2>
+  <div class="config-section">
+    <table id="entityTable" border="1" style="width: 100%; border-collapse: collapse; background-color: #111; color: white; border-color: #333;">
+      <thead>
+        <tr style="background-color: #222;">
+          <th>Category</th>
+          <th>Entity</th>
+          <th>Placement</th>
+          <th>Quantity</th>
+          <th>Depends On</th>
+          <th>Within Zone</th>
+          <th>Remove</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Storage, Machinery"></td>
+          <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="Auto">Auto</option>
+              <option value="Manual">Manual</option>
+            </select>
+          </td>
+          <td><input type="number" class="input-cell" min="1" style="width: 100%; ..."></td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="none">None</option>
+            </select>
+          </td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="none">None</option>
+            </select>
+          </td>
+          <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="proceed-button-container">
+    <button type="submit" class="button">Proceed</button>
+</div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-    // Update slider values
-    
-    // const paceSlider = document.getElementById("paceSlider");
-    // const paceValue = document.getElementById("paceValue");
-    // paceSlider.oninput = function() {
-    //     paceValue.textContent = this.value;
-    // }
-    
-    // const boxesSlider = document.getElementById("boxesSlider");
-    // const boxesValue = document.getElementById("boxesValue");
-    // boxesSlider.oninput = function() {
-    //     boxesValue.textContent = this.value;
-    // }
-    
-    // const agentsSlider = document.getElementById("agentsSlider");
-    // const agentsValue = document.getElementById("agentsValue");
-    // agentsSlider.oninput = function() {
-    //     agentsValue.textContent = this.value;
-    // }
+const table = document.getElementById("entityTable").getElementsByTagName("tbody")[0];
+
+function isRowFilled(row) {
+  const inputs = row.querySelectorAll("input, select");
+  return Array.from(inputs).every(input => input.value !== "");
+}
+
+function createRow() {
+  const newRow = document.createElement("tr");
+
+  newRow.innerHTML = `
+  <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Storage, Machinery"></td>
+  <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="Auto">Auto</option>
+              <option value="Manual">Manual</option>
+            </select>
+          </td>
+          <td><input type="number" class="input-cell" min="1" style="width: 100%; ..."></td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="none">None</option>
+            </select>
+          </td>
+          <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+              <option value="none">None</option>
+            </select>
+          </td>
+          <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
+  `;
+
+  return newRow;
+}
+
+function addRowIfLastFilled() {
+  const rows = table.querySelectorAll("tr");
+  const lastRow = rows[rows.length - 1];
+  if (isRowFilled(lastRow)) {
+    const newRow = createRow();
+    table.appendChild(newRow);
+  }
+}
+
+table.addEventListener("input", addRowIfLastFilled);
+
+table.addEventListener("click", (e) => {
+  if (e.target.classList.contains("remove-btn")) {
+    const row = e.target.closest("tr");
+    if (table.rows.length > 1) {
+      row.remove();
+    } else {
+      alert("You must have at least one row.");
+    }
+  }
+});
 </script>
 {% endblock %}

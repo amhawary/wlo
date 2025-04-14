@@ -2,18 +2,17 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import json
 import uuid
 import mesa
-# from models.warehouse_model import WarehouseModel
-# from models.portrayal import portrayal
+# from ..layout_model import layout
 
 app = Flask(__name__)
-app.secret_key = 'warehouse_optimizer_secret_key'
+app.secret_key = 'warehouse_optimiser_secret_key'
 
 # Store active simulations
 simulations = {}
 
 @app.route('/')
 def index():
-    """Landing page for the warehouse optimizer"""
+    """Landing page for the warehouse optimiser"""
     return render_template('index.html')
 
 @app.route('/config', methods=['GET', 'POST'])
@@ -21,31 +20,102 @@ def config():
     """Configuration page for warehouse setup"""
     if request.method == 'POST':
         # Store configuration in session
+                
+        ex_ent_placement = request.form.get('ex_ent_placement')
+        wall_placement = request.form.get('wall_placement')
+
         session['config'] = {
-            'warehouse_type': request.form.get('warehouse_type'),
-            'warehouse_size': request.form.get('warehouse_size'),
-            'shapes': request.form.get('shapes'),
+            'warehouse_width': int(request.form.get('warehouse_width')),
+            'warehouse_length': int(request.form.get('warehouse_length')),
+            'aisle_width': int(request.form.get('aisle_width')),
+            'ex_ent_placement': ex_ent_placement,
+            'wall_placement': wall_placement,
             'model': request.form.get('model')
         }
-        return redirect(url_for('entities'))
+        #session['layout'] = Layout()
+
+        if wall_placement=='manual' or ex_ent_placement=='manual':
+            return redirect(url_for('structure'))         
+        else:
+            return redirect(url_for('zones'))
+        
     return render_template('config.html')
+
+@app.route('/structure', methods=['GET', 'POST'])
+def structure():
+    """Configuration page for the structure"""
+    if request.method == 'POST':
+            layout_json = request.form.get('layout_data')
+            layout = json.loads(layout_json)  # ← Parse JSON string into dic
+  
+            new_layout = {
+                'wall':[],
+                'loading':[],
+                'ex':[],
+                'ent':[],
+                'ex_ent':[],
+            }
+            for coord in layout.keys():
+                new_layout[layout[coord]].append(coord)
+
+            session['layout'] = new_layout
+            return redirect(url_for('zones'))
+    return render_template('structure.html')
+
+@app.route('/zones', methods=['GET', 'POST'])
+def zones():
+    """Configuration page for zones"""
+    if request.method == 'POST':
+        layout_json = request.form.get('layout_data')
+        layout = json.loads(layout_json)  # ← Parse JSON string into dic
+
+        new_layout = {
+            'highTemp':[],
+            'lowTemp':[],
+            'highHumidity':[],
+            'lowHumidity':[],
+        }
+        for coord in layout.keys():
+            new_layout[layout[coord]].append(coord)
+
+        session['layout'] = layout
+        return redirect(url_for('utilities'))
+    return render_template('zones.html')
+
+@app.route('/utilities', methods=['GET', 'POST'])
+def utilities():
+    """Configuration page for entities like shelves and stations"""
+    if request.method == 'POST':
+        return redirect(url_for('entities'))
+    return render_template('utilities.html')
 
 @app.route('/entities', methods=['GET', 'POST'])
 def entities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        # Store entity configuration in session
-        session['entities'] = {
-            'shelves': int(request.form.get('shelves', 4)),
-            'stations': int(request.form.get('stations', 2)),
-        }
-        session['parameters'] = {
-            'pace': int(request.form.get('pace', 50)),
-            'num_boxes': int(request.form.get('num_boxes', 50)),
-            'num_agents': int(request.form.get('num_agents', 5))
-        }
+        return redirect(url_for('place-entities'))
+    return render_template('entities.html')
+
+@app.route('/place-entities', methods=['GET', 'POST'])
+def place_entities():
+    """Configuration page for entities like shelves and stations"""
+    if request.method == 'POST':
         return redirect(url_for('simulation'))
     return render_template('entities.html')
+
+@app.route('/operations', methods=['GET', 'POST'])
+def place_entities():
+    """Configuration page for entities like shelves and stations"""
+    if request.method == 'POST':
+        return redirect(url_for('optimiser'))
+    return render_template('operations.html')
+
+@app.route('/optimiser', methods=['GET', 'POST'])
+def place_entities():
+    """Configuration page for entities like shelves and stations"""
+    if request.method == 'POST':
+        return redirect(url_for('simulation'))
+    return render_template('optimiser.html')
 
 @app.route('/hyperparameters')
 def hyperparameters():

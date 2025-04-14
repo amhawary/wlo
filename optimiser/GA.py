@@ -36,15 +36,6 @@ class population():
 
 
     def _selectIndiv(self):
-        # chances = []
-        # total = 0
-        # for individal in self.pop:
-        #     for i in range(0,int(individal.fitness)):
-        #         chances.append(individal)
-        #         total = total + 1
-        # r = randint(0,total - 1)
-        # return chances[r]
-
         r1= randint(0, p-1)
         r2 = randint(0, p-1)
         print(r1,r2)
@@ -60,10 +51,6 @@ class population():
         x = self._selectIndiv()
         y = self._selectIndiv()
         
-        # print("x & y:")
-        # print(x)s
-        # print(y)
-
         a = self.individual()
         b = self.individual() 
 
@@ -85,9 +72,6 @@ class population():
         b.inherit(gene2)
         self._mutation(a)
         self._mutation(b)
-        # print("a&b:")
-        # print(a)
-        # print(b)
 
         if a.fitness > self.newWorst.fitness:
             self.newWorst = a
@@ -108,9 +92,9 @@ class population():
     def newGen(self):
         self.fitness = 0
         self.average = 0
-        self.newBest = individual()
+        self.newBest = self.individual()
         self.newBest.inherit(np.full_like(np.arange(n), upperLimit,dtype=np.double))
-        self.newWorst = individual()
+        self.newWorst = self.individual()
         self.newPop = []
         
         for i in range(0,p,2):
@@ -182,5 +166,3 @@ ax.plot(avrgArray, linewidth=2.0, label='Average')
 ax.plot(bestArray, linewidth=2.0, label='Best')
 ax. legend()
 plt.show()                               
-
-s

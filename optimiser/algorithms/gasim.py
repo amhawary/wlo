@@ -1,0 +1,3 @@
+# gasim = Genetic Algorithm + Simulation
+
+

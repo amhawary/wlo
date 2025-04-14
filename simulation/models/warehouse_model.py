@@ -9,11 +9,7 @@ from models.portrayal import portrayal
 import numpy as np
 
 class WarehouseModel(Model):
-    """Model for warehouse optimization simulation with GA-evolved layout."""
-    
-    def __init__(self, warehouse_type="standard", warehouse_size=20, shapes="rectangular", 
-                 model="efficiency", shelves=4, stations=2, pace=50, num_boxes=50, num_agents=5,
-                 population_size=10):
+    def __init__(self, layout):
         super().__init__()
         
         # Initialize parameters
