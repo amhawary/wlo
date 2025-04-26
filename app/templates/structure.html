@@ -1,153 +1,61 @@
-{% extends "base.html" %}
+{% extends "base-canvas.html" %}
 
-{% block content %}
-  <div class="container">
-    <h1>Select Configuration</h1>
-    <h2>Draw Walls, Exit/Entrance and Loading</h2>
+{% block page_title %}Structure Configuration{% endblock %}
+{% block page_subtitle %}Draw Walls, Entrances, Exits and Loading Points{% endblock %}
+{% block save_endpoint %}/structure{% endblock %}
 
-    <div class="config-grid" style="display: flex; gap: 1rem;">
-      <div class="config-section" style="display: inline-block;">
-        <canvas id="structCanvas" style="display: block;"></canvas>
-      </div>
+{% block drawing_tools %}
+<select id="structType">
+  <option value="wall">🧱 Wall</option>
+  <option value="loading">📦 Loading struct</option>
+  <option value="ex">⛔ Exit Only</option>
+  <option value="ent">🚪 Entrance Only</option>
+  <option value="ex_ent">🚪↔️ Entrance & Exit</option>
+  <option value="erase">🧽 Eraser Tool</option>
+</select>
+{% endblock %}
 
-      <div class="config-section" style="flex: 1;">
-        <label for="structType">Currently Drawing:</label>
-        <select id="structType">
-          <option value="wall">🧱 Wall</option>
-          <option value="loading">📦 Loading struct</option>
-          <option value="ex">⛔ Exit Only</option>
-          <option value="ent">🚪 Entrance Only</option>
-          <option value="ex_ent">🚪↔️ Entrance & Exit</option>
-          <option value="erase">🧽 Eraser Tool</option>
-        </select>
+{% block legend %}
+<div class="legend">
+  <h3>Legend</h3>
+  <div><span style="background-color: #333;"></span> Wall </div>
+  <div><span style="background-color: orange;"></span> Loading struct </div>
+  <div><span style="background-color: lightcoral;"></span> Exit Only</div>
+  <div><span style="background-color: lime;"></span> Entrance Only</div>
+  <div><span style="background-color: lightblue;"></span> Entrance & Exit</div>
+</div>
+{% endblock %}
 
-        <div class="legend">
-          <h3>Legend</h3>
-          <div><span style="background-color: #333;"></span> Wall </div>
-          <div><span style="background-color: orange;"></span> Loading struct </div>
-          <div><span style="background-color: lightcoral;"></span> Exit Only</div>
-          <div><span style="background-color: lime;"></span> Entrance Only</div>
-          <div><span style="background-color: lightblue;"></span> Entrance & Exit</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="proceed-button-container">
-    <form id="structureForm" method="POST" action="/structure">
-      <input type="hidden" name="layout_data" id="layoutData">
-      <button type="submit" class="button">Proceed</button>
-    </form>
-  </div>
+{% block struct_colors %}
+{
+  "wall": "#333",
+  "loading": "orange",
+  "ex": "lightcoral",
+  "ent": "lime",
+  "ex_ent": "lightblue"
+}
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script>
-  const canvas = document.getElementById("structCanvas");
-  const ctx = canvas.getContext("2d");
-  const rows = {{session.get('config').get('warehouse_width')}} + 2;
-  const cols = {{session.get('config').get('warehouse_width')}} + 2;
-
-  const maxCanvasSize = 800;
-  const cellSize = Math.floor(maxCanvasSize / Math.max(rows, cols));
-  canvas.width = cols * cellSize;
-  canvas.height = rows * cellSize;
-
-  const structColors = {
-    wall: '#333',
-    loading: 'orange',
-    ex: 'lightcoral',
-    ent: 'lime',
-    ex_ent: 'lightblue'
-  };
-
-  const structMap = {};
-
-  function drawGrid() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    for (let key in structMap) {
-      const [x, y] = key.split(',').map(Number);
-      const struct = structMap[key];
-      ctx.fillStyle = structColors[struct] || '#fff';
-      ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-    }
-
-    ctx.strokeStyle = "#ccc";
-    for (let i = 0; i <= cols; i++) {
-      ctx.beginPath();
-      ctx.moveTo(i * cellSize, 0);
-      ctx.lineTo(i * cellSize, canvas.height);
-      ctx.stroke();
-    }
-    for (let j = 0; j <= rows; j++) {
-      ctx.beginPath();
-      ctx.moveTo(0, j * cellSize);
-      ctx.lineTo(canvas.width, j * cellSize);
-      ctx.stroke();
-    }
-  }
-
-  function isEdge(x, y) {
-    return x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-  }
-
-  function handleDraw(x, y) {
+  handleDrawCallback = function(x, y, changes, initialMap, rows, cols) {
     const structType = document.getElementById("structType").value;
     const key = `${x},${y}`;
+    const isWall = initialMap[key] === 'wall';
+    const isEdge = x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
 
-    if (structType === "erase") {
-      if (!isEdge(x, y)) {
-        delete structMap[key];
-      } else {
-        structMap[key] = "wall"
-      }
+    if (structType === 'erase') {
+      // Prevent removing original structures
+      if (key in changes) delete changes[key];
     } else if (["ex", "ent", "ex_ent"].includes(structType)) {
-      if (structMap[key] === "wall") {
-        structMap[key] = structType;
-      }
+      // Allow overwriting walls on edges
+      if (isWall && isEdge) changes[key] = structType;
     } else {
-      structMap[key] = structType;
+      changes[key] = structType;
     }
-
-    drawGrid();
-  }
-
-  let isDrawing = false;
-
-  canvas.addEventListener("mousedown", (e) => {
-    isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / cellSize);
-    const y = Math.floor((e.clientY - rect.top) / cellSize);
-    handleDraw(x, y);
-  });
-
-  canvas.addEventListener("mousemove", (e) => {
-    if (isDrawing) {
-      const rect = canvas.getBoundingClientRect();
-      const x = Math.floor((e.clientX - rect.left) / cellSize);
-      const y = Math.floor((e.clientY - rect.top) / cellSize);
-      handleDraw(x, y);
-    }
-  });
-
-  window.addEventListener("mouseup", () => isDrawing = false);
-
-  document.getElementById("structureForm").addEventListener("submit", function (e) {
-    const layoutJSON = JSON.stringify(structMap);
-    document.getElementById("layoutData").value = layoutJSON;
-  });
-
-  // Add outer wall
-  for (let x = 0; x < cols; x++) {
-    structMap[`${x},0`] = "wall";
-    structMap[`${x},${rows - 1}`] = "wall";
-  }
-  for (let y = 0; y < rows; y++) {
-    structMap[`0,${y}`] = "wall";
-    structMap[`${cols - 1},${y}`] = "wall";
-  }
-
-  drawGrid();
-  </script>
+    
+    console.log(key)
+  };
+</script>
 {% endblock %}

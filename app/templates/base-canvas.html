@@ -1,161 +1,152 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Warehouse Layout Optimizer</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-</head>
-<body>
-    <header>
-    </header>
-    
-    <main>
-        <div class="container">
-            <h1>Select Configuration</h1>
-        {% block subheading %}{% endblock %}
-    <div class="config-grid" style="display: flex; gap: 1rem;">
-        <div class="config-section" style="display: inline-block;">
-          <canvas id="canvas" style="display: block;"></canvas>
-        </div>
-  
-        <div class="config-section" style="flex: 1;">
-          <label for="structType">Currently Drawing:</label>
-          <select id="structType">
-            <option value="wall">🧱 Wall</option>
-            <option value="loading">📦 Loading struct</option>
-            <option value="ex">⛔ Exit Only</option>
-            <option value="ent">🚪 Entrance Only</option>
-            <option value="ex_ent">🚪↔️ Entrance & Exit</option>
-            <option value="erase">🧽 Eraser Tool</option>
-          </select>
-  
-          <div class="legend">
-            <h3>Legend</h3>
-            <div><span style="background-color: #333;"></span> Wall </div>
-            <div><span style="background-color: orange;"></span> Loading struct </div>
-            <div><span style="background-color: lightcoral;"></span> Exit Only</div>
-            <div><span style="background-color: lime;"></span> Entrance Only</div>
-            <div><span style="background-color: lightblue;"></span> Entrance & Exit</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="proceed-button-container">
+{% extends "base.html" %}
 
-      <form id="structureForm" method="POST" action="/structure">
+{% block content %}
+<div class="container">
+  <h1>{% block page_title %}{% endblock %}</h1>
+  <h2>{% block page_subtitle %}{% endblock %}</h2>
+
+  <div class="config-grid" style="display: flex; gap: 1rem;">
+    <div class="config-section" style="display: inline-block;">
+      <canvas id="structCanvas" width="800" height="800" style="display: block;"></canvas>
+    </div>
+
+    <div class="config-section" style="flex: 1;">
+      <label for="structType">Currently Drawing:</label>
+      {% block drawing_tools %}{% endblock %}
+      {% block legend %}{% endblock %}
+      <button type="button" id="clearCanvasBtn" class="button" style="margin-top: 10px;">🧼 Clear All</button>
+      <form id="structureForm" method="POST" action="{% block save_endpoint %}{% endblock %}">
         <input type="hidden" name="layout_data" id="layoutData">
-        <button type="submit" class="button">Proceed</button>
+        <button type="submit" class="button" style="margin-top: 10px;">Proceed</button>
       </form>
     </div>
-    </main>
-    
-    <footer>
-        <p>Powered by Mesa and Flask</p>
-    </footer>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const canvas = document.getElementById("structCanvas");
+  const ctx = canvas.getContext("2d");
 
-    <script>
-        const canvas = document.getElementById("structCanvas");
-        const ctx = canvas.getContext("2d");
-        const rows = {{session.get('config').get('warehouse_width')}} + 2;
-        const cols = {{session.get('config').get('warehouse_width')}} + 2;
+  const rows = {{ session.get('config').get('warehouse_width') + 2 }};
+  const cols = {{ session.get('config').get('warehouse_width') + 2 }};
+  const maxCanvasSize = 800;
+  const cellSize = Math.floor(maxCanvasSize / Math.max(rows, cols));
 
-        const maxCanvasSize = 800;
-        const cellSize = Math.floor(maxCanvasSize / Math.max(rows, cols));
-        canvas.width = cols * cellSize;
-        canvas.height = rows * cellSize;
+  canvas.width = cols * cellSize;
+  canvas.height = rows * cellSize;
 
-        const structColors = {
-            wall: '#333',
-            loading: 'orange',
-            ex: 'lightcoral',
-            ent: 'lime',
-            ex_ent: 'lightblue'
-        };
+  const structColors = {% block struct_colors %}{}{% endblock %};
+  const changes = {};
+  const initialLayout = {{ session.get('initial_layout') | tojson }};
+  const initialMap = {}
+  for (const [type, positions] of Object.entries(initialLayout)) {
+    console.log(positions)
+    for (const [x, y] of positions) {
+      console.log(x)
+      console.log(y)
+      initialMap[`${x},${y}`] = type;
+    }
+  }
+  console.log(initialMap)
 
-        
+  function drawGrid() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        const structMap = {};
+    for (let y = 0; y < rows; y++) {
+      for (let x = 0; x < cols; x++) {
+        const key = `${x},${y}`;
+        const type = initialMap[key];
 
-        function drawGrid() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let key in structMap) {
-            const [x, y] = key.split(',').map(Number);
-            const struct = structMap[key];
-            ctx.fillStyle = structColors[struct] || '#fff';
+        if (type) {
+          if (structColors[type].startsWith("circle-")) {
+            ctx.beginPath();
+            ctx.arc(
+              x * cellSize + cellSize / 2,
+              y * cellSize + cellSize / 2,
+              cellSize / 4,
+              0,
+              2 * Math.PI
+            );
+            ctx.fillStyle = structColors[type].split("-")[1];
+            ctx.fill();
+          } else {
+            ctx.fillStyle = structColors[type];
             ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-            }
+          }
+        }
+      }
+    }
 
-            ctx.strokeStyle = "#ccc";
-            for (let i = 0; i <= cols; i++) {
+    for (let key in changes) {
+      const [x, y] = key.split(',').map(Number);
+      const type = changes[key];
+
+      if (type) {
+          if (structColors[type].startsWith("circle-")) {
             ctx.beginPath();
-            ctx.moveTo(i * cellSize, 0);
-            ctx.lineTo(i * cellSize, canvas.height);
-            ctx.stroke();
-            }
-            for (let j = 0; j <= rows; j++) {
-            ctx.beginPath();
-            ctx.moveTo(0, j * cellSize);
-            ctx.lineTo(canvas.width, j * cellSize);
-            ctx.stroke();
-            }
+            ctx.arc(
+              x * cellSize + cellSize / 2,
+              y * cellSize + cellSize / 2,
+              cellSize / 4,
+              0,
+              2 * Math.PI
+            );
+            ctx.fillStyle = structColors[type].split("-")[1];
+            ctx.fill();
+          } else {
+            ctx.fillStyle = structColors[type];
+            ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+          }
         }
 
-        function isEdge(x, y) {
-            return x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-        }
+    }
 
-        function handleDraw(x, y) {
-            const structType = document.getElementById("structType").value;
-            const key = `${x},${y}`;
+    ctx.strokeStyle = "#ccc";
+    for (let i = 0; i <= cols; i++) {
+      ctx.beginPath();
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, canvas.height);
+      ctx.stroke();
+    }
 
-            if (structType === "erase") {
-            if (!isEdge(x, y)) {
-                delete structMap[key];
-            } else {
-                structMap[key] = "wall"
-            }
-            } else if (["ex", "ent", "ex_ent"].includes(structType)) {
-            if (structMap[key] === "wall") {
-                structMap[key] = structType;
-            }
-            } else {
-            structMap[key] = structType;
-            }
+    for (let j = 0; j <= rows; j++) {
+      ctx.beginPath();
+      ctx.moveTo(0, j * cellSize);
+      ctx.lineTo(canvas.width, j * cellSize);
+      ctx.stroke();
+    }
+  }
 
-            drawGrid();
-        }
 
-        let isDrawing = false;
+  let isMouseDown = false;
+  canvas.addEventListener("mousedown", () => isMouseDown = true);
+  canvas.addEventListener("mouseup", () => isMouseDown = false);
+  canvas.addEventListener("mousemove", (e) => {
+    if (isMouseDown) handleDraw(e);
+  });
+  canvas.addEventListener("click", handleDraw);
 
-        canvas.addEventListener("mousedown", (e) => {
-            isDrawing = true;
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) / cellSize);
-            const y = Math.floor((e.clientY - rect.top) / cellSize);
-            handleDraw(x, y);
-        });
+  function handleDraw(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / cellSize);
+    const y = Math.floor((e.clientY - rect.top) / cellSize);
+    handleDrawCallback(x, y, changes, initialLayout, rows, cols);
+    drawGrid();
+  }
 
-        canvas.addEventListener("mousemove", (e) => {
-            if (isDrawing) {
-            const rect = canvas.getBoundingClientRect();
-            const x = Math.floor((e.clientX - rect.left) / cellSize);
-            const y = Math.floor((e.clientY - rect.top) / cellSize);
-            handleDraw(x, y);
-            }
-        });
+  document.getElementById("clearCanvasBtn").addEventListener("click", () => {
+    for (let key in changes) {
+      delete changes[key];
+    }
+    drawGrid();
+  });
 
-        window.addEventListener("mouseup", () => isDrawing = false);
+  document.getElementById("structureForm").addEventListener("submit", function (e) {
+    const layoutJSON = JSON.stringify(changes);
+    document.getElementById("layoutData").value = layoutJSON;
+  });
 
-        document.getElementById("structureForm").addEventListener("submit", function (e) {
-            const layoutJSON = JSON.stringify(structMap);
-            document.getElementById("layoutData").value = layoutJSON;
-        });
-            
-        {% block scripts %}{% endblock %}
-    
-        drawGrid();
-    </script>
-</body>
-</html>
+  drawGrid();
+</script>
+{% endblock %}

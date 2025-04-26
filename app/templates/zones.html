@@ -1,179 +1,55 @@
-{% extends "base.html" %}
+{% extends "base-canvas.html" %}
 
-{% block content %}
-  <style>
-    body {
-      font-family: sans-serif;
-      padding: 2rem;
-    }
+{% block page_title %}Structure Configuration{% endblock %}
+{% block page_subtitle %}Indicate different zones{% endblock %}
+{% block save_endpoint %}/zones{% endblock %}
 
-    canvas {
-      border: 1px solid #ccc;
-      background-color: white;
-      margin-top: 1rem;
-      cursor: pointer;
-    }
+{% block drawing_tools %}
+<select id="structType">
+  <option value="highTemp">🔥 High Temperature</option>
+  <option value="lowTemp">❄️ Low Temperature</option>
+  <option value="highHumidity">💧 High Humidity</option>
+  <option value="lowHumidity">💨 Low Humidity</option>
+  <option value="erase">🧽 Eraser Tool</option>
+</select>
 
-    select {
-      margin-top: 1rem;
-      padding: 0.4rem;
-    }
+{% endblock %}
 
-    .legend {
-      margin-top: 1rem;
-    }
-
-    .legend span {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      margin-right: 5px;
-      vertical-align: middle;
-    }
-
-    .legend div {
-      margin-bottom: 0.5rem;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Select Configuration</h1>
-    <h2>Define Zones</h2>
-    
-    <div class="config-grid" style="display: flex; gap: 1rem;">
-      <div class="config-section" style="display: inline-block;">
-        <canvas id="zoneCanvas" width="800" height="400" style="display: block;"></canvas>
-      </div>
-
-        <!-- Sidebar: flexible width -->
-        <div class="config-section" style="flex: 1;">
-          <label for="zoneType">Select Zone Type:</label>
-          <select id="zoneType">
-            <option value="highTemp">🔥 High Temperature</option>
-            <option value="lowTemp">❄️ Low Temperature</option>
-            <option value="highHumidity">💧 High Humidity</option>
-            <option value="lowHumidity">💨 Low Humidity</option>
-          </select>
-      
-          <div class="legend">
-            <h3>Legend</h3>
-            <div><span style="background-color: red;"></span> High Temperature</div>
-            <div><span style="background-color: blue;"></span> Low Temperature</div>
-            <div><span style="background-color: teal;"></span> High Humidity</div>
-            <div><span style="background-color: lightblue;"></span> Low Humidity</div>
-          </div>
-        </div>
-  </div>
-</div>
-<div class="proceed-button-container">
-  <form id="zoneureForm" method="POST" action="/zones">
-    <input type="hidden" name="layout_data" id="layoutData">
-    <button type="submit" class="button">Proceed</button>
-  </form>
+{% block legend %}
+<div class="legend">
+  <h3>Legend</h3>
+  <div><span style="background-color: red;"></span> High Temperature</div>
+  <div><span style="background-color: blue;"></span> Low Temperature</div>
+  <div><span style="background-color: teal;"></span> High Humidity</div>
+  <div><span style="background-color: lightblue;"></span> Low Humidity</div>
 </div>
 {% endblock %}
 
-  {% block scripts %}
-  <script>
-    const layout = JSON.stringify({{session.get('layout') | tojson }})
-    const canvas = document.getElementById("zoneCanvas");
-    const ctx = canvas.getContext("2d");
-    const rows = {{session.get('config').get('warehouse_width')}} + 2;
-    const cols = {{session.get('config').get('warehouse_width')}} + 2;
-
-    const maxCanvasSize = 800;
-    const cellSize = Math.floor(maxCanvasSize / Math.max(rows, cols));
-    canvas.width = cols * cellSize;
-    canvas.height = rows * cellSize;
-
-    // Color map
-    const zoneColors = {
-      highTemp: "red",
-      lowTemp: "blue",
-      highHumidity: "teal",
-      lowHumidity: "lightblue"
-    };
-
-    const zoneMap = {};
-
-function drawGrid() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  for (let key in zoneMap) {
-    const [x, y] = key.split(',').map(Number);
-    const zone = zoneMap[key];
-    ctx.fillStyle = zoneColors[zone] || '#fff';
-    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-  }
-
-  ctx.strokeStyle = "#ccc";
-  for (let i = 0; i <= cols; i++) {
-    ctx.beginPath();
-    ctx.moveTo(i * cellSize, 0);
-    ctx.lineTo(i * cellSize, canvas.height);
-    ctx.stroke();
-  }
-  for (let j = 0; j <= rows; j++) {
-    ctx.beginPath();
-    ctx.moveTo(0, j * cellSize);
-    ctx.lineTo(canvas.width, j * cellSize);
-    ctx.stroke();
-  }
+{% block struct_colors %}
+{
+  "wall": "#333",
+  "loading": "orange",
+  highTemp: "rgba(255, 0, 0, 0.3)",        // translucent red
+  lowTemp: "rgba(0, 0, 255, 0.3)",         // translucent blue
+  highHumidity: "rgba(0, 128, 128, 0.3)",  // translucent teal
+  lowHumidity: "rgba(173, 216, 230, 0.3)"  // translucent light blue
 }
+{% endblock %}
 
-function isEdge(x, y) {
-  return x === 0 || y === 0 || x === cols - 1 || y === rows - 1;
-}
 
-function handleDraw(x, y) {
-  const zoneType = document.getElementById("zoneType").value;
-  const key = `${x},${y}`;
+{% block scripts %}
+{{ super() }}
+<script>
+  handleDrawCallback = function(x, y, changes, initialMap, rows, cols) {
+    const structType = document.getElementById("structType").value;
+    const key = `${x},${y}`;
 
-  if (zoneType === "erase") {
-    if (!isEdge(x, y)) {
-      delete zoneMap[key];
+    if (structType === 'erase') {
+      // Prevent removing original structures
+      if (key in changes) delete changes[key];
     } else {
-      zoneMap[key] = "wall"
+      changes[key] = structType;
     }
-  } else if (["ex", "ent", "ex_ent"].includes(zoneType)) {
-    if (zoneMap[key] === "wall") {
-      zoneMap[key] = zoneType;
-    }
-  } else {
-    zoneMap[key] = zoneType;
-  }
-
-  drawGrid();
-}
-
-let isDrawing = false;
-
-canvas.addEventListener("mousedown", (e) => {
-  isDrawing = true;
-  const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / cellSize);
-  const y = Math.floor((e.clientY - rect.top) / cellSize);
-  handleDraw(x, y);
-});
-
-canvas.addEventListener("mousemove", (e) => {
-  if (isDrawing) {
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.floor((e.clientX - rect.left) / cellSize);
-    const y = Math.floor((e.clientY - rect.top) / cellSize);
-    handleDraw(x, y);
-  }
-});
-
-window.addEventListener("mouseup", () => isDrawing = false);
-
-document.getElementById("zoneureForm").addEventListener("submit", function (e) {
-  const layoutJSON = JSON.stringify(zoneMap);
-  document.getElementById("layoutData").value = layoutJSON;
-});
-
-drawGrid();
-  </script>
-
+  };
+</script>
 {% endblock %}

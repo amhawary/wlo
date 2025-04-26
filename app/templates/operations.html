@@ -36,7 +36,7 @@
                 <h3>Select Model:</h3>
                 <select name="model" required>
                     <option value="ga">Genetic Algorithm</option>
-                    <option value="rl">Reenforced Learning</option>
+                    <option value="rl">Reinforced Learning</option>
                     <option value="gasim">Genetic Algorithm + Simulation</option>
                 </select>
 
@@ -44,7 +44,9 @@
         </div>
         
         <div class="proceed-button-container">
-            <button type="submit" class="button">Proceed</button>
+            <form id="structureForm" method="POST" action="/entities">
+                <button type="submit" class="button" style="margin-top: 10px;">Proceed</button>
+              </form>
         </div>
     </form>
 </div>

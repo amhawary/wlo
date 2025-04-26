@@ -2,9 +2,13 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import json
 import uuid
 import mesa
-# from ..layout_model import layout
+from layout_model.layout import *
 
-app = Flask(__name__)
+app = Flask(
+    __name__,
+    template_folder='app/templates',
+    static_folder='app/static'
+)
 app.secret_key = 'warehouse_optimiser_secret_key'
 
 # Store active simulations
@@ -19,21 +23,23 @@ def index():
 def config():
     """Configuration page for warehouse setup"""
     if request.method == 'POST':
-        # Store configuration in session
-                
+        warehouse_width = int(request.form.get('warehouse_width'))
+        warehouse_length = int(request.form.get('warehouse_length'))
+
         ex_ent_placement = request.form.get('ex_ent_placement')
         wall_placement = request.form.get('wall_placement')
 
         session['config'] = {
-            'warehouse_width': int(request.form.get('warehouse_width')),
-            'warehouse_length': int(request.form.get('warehouse_length')),
+            'warehouse_width': warehouse_width,
+            'warehouse_length': warehouse_length,
             'aisle_width': int(request.form.get('aisle_width')),
             'ex_ent_placement': ex_ent_placement,
             'wall_placement': wall_placement,
             'model': request.form.get('model')
         }
-        #session['layout'] = Layout()
-
+        
+        session['layout_obj'] = Layout(warehouse_width, warehouse_length).to_dict()
+        session['initial_layout'] = session['layout_obj']['structure']
         if wall_placement=='manual' or ex_ent_placement=='manual':
             return redirect(url_for('structure'))         
         else:
@@ -45,20 +51,15 @@ def config():
 def structure():
     """Configuration page for the structure"""
     if request.method == 'POST':
+            layout = Layout.from_dict(session["layout_obj"])
             layout_json = request.form.get('layout_data')
-            layout = json.loads(layout_json)  # ← Parse JSON string into dic
-  
-            new_layout = {
-                'wall':[],
-                'loading':[],
-                'ex':[],
-                'ent':[],
-                'ex_ent':[],
-            }
-            for coord in layout.keys():
-                new_layout[layout[coord]].append(coord)
+            struct = json.loads(layout_json)  # ← Parse JSON string into dic
+            
+            layout.addStructure(struct)
 
-            session['layout'] = new_layout
+            session['layout_obj'] = layout.to_dict()
+            session['initial_layout'] = session['layout_obj']['structure']
+            
             return redirect(url_for('zones'))
     return render_template('structure.html')
 
@@ -66,19 +67,15 @@ def structure():
 def zones():
     """Configuration page for zones"""
     if request.method == 'POST':
+        layout = Layout.from_dict(session["layout_obj"])
         layout_json = request.form.get('layout_data')
-        layout = json.loads(layout_json)  # ← Parse JSON string into dic
+        zones = json.loads(layout_json)  # ← Parse JSON string into dic
+        
+        layout.addZones(zones)
 
-        new_layout = {
-            'highTemp':[],
-            'lowTemp':[],
-            'highHumidity':[],
-            'lowHumidity':[],
-        }
-        for coord in layout.keys():
-            new_layout[layout[coord]].append(coord)
+        session['layout_obj'] = layout.to_dict()
+        session['initial_layout'] = session['layout_obj']['structure']
 
-        session['layout'] = layout
         return redirect(url_for('utilities'))
     return render_template('zones.html')
 
@@ -86,6 +83,15 @@ def zones():
 def utilities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
+        layout = Layout.from_dict(session["layout_obj"])
+        layout_json = request.form.get('layout_data')
+        utilities = json.loads(layout_json)  # ← Parse JSON string into dic
+        
+        layout.addUtilities(utilities)
+
+        session['layout_obj'] = layout.to_dict()
+        session['initial_layout'] = session['layout_obj']['structure']
+
         return redirect(url_for('entities'))
     return render_template('utilities.html')
 
@@ -93,25 +99,39 @@ def utilities():
 def entities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        return redirect(url_for('place-entities'))
+        layout = Layout.from_dict(session["layout_obj"])
+        layout_json = request.form.get('entities_data')
+        entities = json.loads(layout_json)  # ← Parse JSON string into dic
+
+        layout.addEntities(entities)
+        session['layout_obj'] = layout.to_dict()
+
+        manual_placement = layout.manualPlacedEntities
+
+        if len(manual_placement) > 0:
+            session['placing_entities'] = manual_placement
+            return redirect(url_for('place_entities'))
+        else:
+            return redirect(url_for('operations'))
+   
     return render_template('entities.html')
 
 @app.route('/place-entities', methods=['GET', 'POST'])
 def place_entities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        return redirect(url_for('simulation'))
-    return render_template('entities.html')
+        return redirect(url_for('operations'))
+    return render_template('place-entities.html')
 
 @app.route('/operations', methods=['GET', 'POST'])
-def place_entities():
+def operations():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
         return redirect(url_for('optimiser'))
     return render_template('operations.html')
 
 @app.route('/optimiser', methods=['GET', 'POST'])
-def place_entities():
+def optimiser():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
         return redirect(url_for('simulation'))
