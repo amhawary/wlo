@@ -2,12 +2,10 @@ import math
 from collections import defaultdict
 
 class Operation:
-    def __init__(self, from_coords, to_coords, frequency=1, mode='manual', item_types=None):
-        self.from_coords = from_coords
-        self.to_coords = to_coords
+    def __init__(self, from_entity, to_entity, frequency=1):
+        self.from_coords = from_entity
+        self.to_coords = to_entity
         self.frequency = frequency
-        self.mode = mode
-        self.item_types = item_types or []
 
 class Entity:
     def __init__(self, category, type_, placement, quantity, depends_on, within_zone, facing_direction):
@@ -27,7 +25,6 @@ class Layout:
         self.entities = []
         self.structure = {
             'wall': [],
-            'aisle': [],
             'loading': [],
             'ex': [],
             'ent': [],

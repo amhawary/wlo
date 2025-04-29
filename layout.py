@@ -18,7 +18,13 @@ class Layout:
             'lowHumidity':[],
         }
         self.utilities = {
-
+    	    'gas': [],
+    	    'electric': [],
+    	    'water': [],
+    	    'air': [],
+    	    'earth': [],
+    	    'network': [],
+    	    'security': [],
         }
         
         for x in range(0, width + 2):
@@ -53,7 +59,7 @@ class Layout:
     def addEntities(self, entities):
         id = 0
         for entity in entities:
-            entity["entity_id"] = id
+            entity['entity_id'] = id
             self.entities.append(entity)
             id += 1
     
@@ -84,17 +90,17 @@ class Layout:
     
     def to_dict(self):
         return {
-        "length": self.length,
-        "width": self.width,
-        "entities": self.entities,
-        "structure": self.structure,
-        "zones": self.zones,
-        "utilities": self.utilities
+        'length': self.length,
+        'width': self.width,
+        'entities': self.entities,
+        'structure': self.structure,
+        'zones': self.zones,
+        'utilities': self.utilities
         }
     
     @classmethod
     def from_dict(cls, data):
-        layout = cls(data["width"], data["length"])
+        layout = cls(data['width'], data['length'])
         layout.entities = data['entities']
         layout.structure = data['structure']
         layout.zones = data['zones']

@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import json
 import uuid
 import mesa
-from layout_model.layout import *
+from layout import *
 
 app = Flask(
     __name__,
