@@ -15,25 +15,25 @@ def getFitness(layout, weights):
         if path:
             routes.append(path)
 
-    travelDistance = calcAvrgRouteDistance()
-    spaceUtilisation = calcSpaceUtilisation()
-    congestionRisk = calcCongestionRisk()
-    nturns = calcAvrgTurns()
-    clustering = calcAvrgClustering()
-    utilityAccess = calcUtilityAccess()
+    travelDistance = calc_avrg_distance()
+    # spaceUtilisation = calc_space_utilisation()
+    congestionRisk = calc_congestion_risk()
+    nturns = calc_avrg_turns()
+    # clustering = calcAvrgClustering()
+    # utilityAccess = calcUtilityAccess()
 
     fitness = (
         weights[0] * (1 - travelDistance) +
-        weights[1] * spaceUtilisation +
+    #    weights[1] * spaceUtilisation +
         weights[2] * (1 - congestionRisk) +
-        weights[3] * (1 - nturns) +
-        weights[4] * clustering +
-        weights[5] * utilityAccess 
+        weights[3] * (1 - nturns)
+    #   weights[4] * clustering +
+    #    weights[5] * utilityAccess 
     )
 
     return fitness
 
-def calcCongestionRisk(routes, width, length):
+def calc_congestion_risk(routes, width, length):
     l = [[0 for x in range(width)] for y in range(length)]
     count = 0
     for route in routes:
@@ -41,30 +41,33 @@ def calcCongestionRisk(routes, width, length):
             l[x][y] += 1
             count += 1
     
-    print(l)
-    return
+    congested_paths = []
+    for x in range(width):
+        for y in range(length):
+            if l[x][y] != 0:
+                congested_paths.append(l[x][y])
 
-def calcAvrgRouteDistance(routes):
-    totalDistance = 0
-    min_distance = 
-    max_distance =
+    max_congestion = max(congested_paths)
+    min_congestion = min(congested_paths)
+    avrg_congestion = sum(congested_paths) / len(congested_paths)
+    
+    return avrg_congestion
 
+def calc_avrg_distance(routes):
+
+    distances = []
     for route in routes: 
-        distance = len(route) 
-        totalDistance += distance 
+        distances.append(len(route))
 
-        if max_distance < distance:
-            max_distance = distance
-        if min_distance > distance:
-            min_distance = distance
+    max_distance = max(distances)
+    min_distance = min(distances)
+    avrg_distance = sum(distances)/len(routes)
+    
+    return avrg_distance
 
-    return totalDistance/len(routes)
-
-def calcAvrgTurns(routes):
-    total_turns = 0
-    max_turns = len(routes[0])
-    min_turns = len(routes[0])
-    for path in routes:
+def calc_avrg_turns(routes):
+    turns_list = []
+    for index, path in enumerate(routes):
         turns = 0
         if not path or len(path) < 3:
             continue  # No turns if path is too short
@@ -77,15 +80,16 @@ def calcAvrgTurns(routes):
                 turns += 1
             prev_move = move
 
-            if max_turns < turns:
-                max_turns = turns
-            if min_turns > turns:
-                min_turns = turns
+        turns_list.append(turns)
 
-    return normalise(total_turns/len(routes), min_turns, max_turns)
+    max_turns = max(turns_list)
+    min_turns = min(turns_list)
+    avrg_turns = sum(turns_list)/len(turns_list)
 
+    return avrg_turns
+    return normalise(avrg_turns, min_turns, max_turns)
 
-def calcSpaceUtilisation(routes, width, length):
+def calc_space_utilisation(width, length):
     l = [[0 for x in range(width)] for y in range(length)]
     count = 0
     # get empty cells, 
@@ -103,8 +107,8 @@ def calcSafety():
 def calcAvrgClustering(layout):
     total_cluster_score = 0
 
-    for category in layout.getEntityCategories:
-        entities_in_category = get_entities(category)
+    for category in layout.utilities.keys():
+        entities_in_category = layout.get_category_entities()
         for i in range(len(entities_in_category)):
             for j in range(i+1, len(entities_in_category)):
                 pos1 = entities_in_category[i].position
@@ -115,11 +119,11 @@ def calcAvrgClustering(layout):
 def calcUtilityAccess(layout):
     total_utility_score = 0
 
-    for entity in layout.entities:
-        for required_utility in entity.required_utilities:
-            nearest_point = find_nearest(utility_positions[required_utility], entity.position)
-            dist = manhattan_distance(entity.position, nearest_point)
-            total_utility_score += 1 / (dist + 1)  # +1 to avoid div by zero
+    #for entity in layout.entities:
+            
+            # nearest_point = 
+            #dist = manhattan_distance(entity.position, nearest_point)
+            # stotal_utility_score += 1 / (dist + 1)  # +1 to avoid div by zero
 
 def _diagonal_and_cross_score(self):
         # Aisle = all empty positions

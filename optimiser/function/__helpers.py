@@ -7,6 +7,9 @@ def normalise(self, value, min_val, max_val):
         
         return (value - min_val) / (max_val - min_val)
 
+def manhattan_distance(p1, p2):
+    return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
+
 def astar(start, goal, layout, aisle_width = 1):
     rows = len(layout)
     cols = len(layout[0])

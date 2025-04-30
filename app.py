@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import json
 import uuid
 import mesa
-from layout import *
+from wlo.models import *
+import optimiser
 
 app = Flask(
     __name__,
@@ -108,6 +109,7 @@ def entities():
 
         manual_placement = layout.manualPlacedEntities
 
+        return redirect(url_for('optimiser'))
         if len(manual_placement) > 0:
             session['placing_entities'] = manual_placement
             return redirect(url_for('place_entities'))
@@ -134,7 +136,7 @@ def operations():
 def optimiser():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        return redirect(url_for('simulation'))
+        optimiser.Optimiser()
     return render_template('optimiser.html')
 
 @app.route('/hyperparameters')
