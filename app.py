@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import json
 import uuid
 import mesa
-from wlo.models import *
+from models import *
 import optimiser
 
 app = Flask(
@@ -56,7 +56,7 @@ def structure():
             layout_json = request.form.get('layout_data')
             struct = json.loads(layout_json)  # ← Parse JSON string into dic
             
-            layout.addStructure(struct)
+            layout.add_structure(struct)
 
             session['layout_obj'] = layout.to_dict()
             session['initial_layout'] = session['layout_obj']['structure']
@@ -72,7 +72,7 @@ def zones():
         layout_json = request.form.get('layout_data')
         zones = json.loads(layout_json)  # ← Parse JSON string into dic
         
-        layout.addZones(zones)
+        layout.add_zones(zones)
 
         session['layout_obj'] = layout.to_dict()
         session['initial_layout'] = session['layout_obj']['structure']
@@ -88,7 +88,7 @@ def utilities():
         layout_json = request.form.get('layout_data')
         utilities = json.loads(layout_json)  # ← Parse JSON string into dic
         
-        layout.addUtilities(utilities)
+        layout.add_utilities(utilities)
 
         session['layout_obj'] = layout.to_dict()
         session['initial_layout'] = session['layout_obj']['structure']
@@ -104,10 +104,10 @@ def entities():
         layout_json = request.form.get('entities_data')
         entities = json.loads(layout_json)  # ← Parse JSON string into dic
 
-        layout.addEntities(entities)
+        layout.add_entities(entities)
         session['layout_obj'] = layout.to_dict()
 
-        manual_placement = layout.manualPlacedEntities
+        manual_placement = layout.manual_placed_entities
 
         return redirect(url_for('optimiser'))
         if len(manual_placement) > 0:
@@ -127,17 +127,45 @@ def place_entities():
 
 @app.route('/operations', methods=['GET', 'POST'])
 def operations():
-    """Configuration page for entities like shelves and stations"""
+    """Configuration page for warehouse operations"""
     if request.method == 'POST':
+        layout = Layout.from_dict(session["layout_obj"])
+        operations_json = request.form.get('operations_data')
+        operations = json.loads(operations_json)  # Parse JSON string into dict
+
+        # Validate operations
+        for op in operations:
+            # Check if source and destination entities exist
+            source_exists = any(entity.get('entity_id') == op['source'] for entity in layout.entities)
+            dest_exists = any(entity.get('entity_id') == op['destination'] for entity in layout.entities)
+            
+            if not source_exists or not dest_exists:
+                return jsonify({
+                    "status": "error",
+                    "message": f"Invalid entity IDs in operation: source={op['source']}, destination={op['destination']}"
+                }), 400
+
+        # Add operations to layout
+        layout.add_operations(operations)
+        session['layout_obj'] = layout.to_dict()
+
         return redirect(url_for('optimiser'))
+    
     return render_template('operations.html')
 
 @app.route('/optimiser', methods=['GET', 'POST'])
 def optimiser():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        optimiser.Optimiser()
+        pass
     return render_template('optimiser.html')
+
+@app.route('/optimiser_results', methods=['GET', 'POST'])
+def optimiser_results():
+    """Configuration page for entities like shelves and stations"""
+    if request.method == 'POST':
+        pass
+    return render_template('optimiser-results.html')
 
 @app.route('/hyperparameters')
 def hyperparameters():

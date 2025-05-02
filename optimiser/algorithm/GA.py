@@ -3,14 +3,7 @@ from random import randint, uniform
 import matplotlib.pyplot as plt
 import numpy as np
 
-p = 50
-n = 20
-g = 100
-
-upperLimit = 100
-lowerLimit = -100
-
-class population():
+class ga():
     def __init__(self, individual):
         self.individual = individual
         self.pop = []
@@ -133,36 +126,36 @@ class population():
                 self.mutCount = self.mutCount+1
                 indiv.gene[r] = newChromosome
 
-ppl = population()
-bestArray = []
-worstArray = []
-avrgArray = []
-genFitArray = []
+# ppl = population()
+# bestArray = []
+# worstArray = []
+# avrgArray = []
+# genFitArray = []
 
-print("Generation ", ppl.gen)
-print("Best is ", ppl.best.fitness)
-bestArray.append(ppl.best.fitness)
-print("Worst is ", ppl.worst.fitness)
-worstArray.append(ppl.worst.fitness)
-print("Average is ", ppl.average)
-avrgArray.append(ppl.average)
+# print("Generation ", ppl.gen)
+# print("Best is ", ppl.best.fitness)
+# bestArray.append(ppl.best.fitness)
+# print("Worst is ", ppl.worst.fitness)
+# worstArray.append(ppl.worst.fitness)
+# print("Average is ", ppl.average)
+# avrgArray.append(ppl.average)
 
-for i in range(1,g + 1):
-    ppl.newGen()
-    print("Generation ", ppl.gen)
-    print("Best is ", ppl.best.fitness)
-    bestArray.append(ppl.best.fitness)
-    print("Worst is ", ppl.worst.fitness)
-    worstArray.append(ppl.worst.fitness)
-    print("Average is ", ppl.average)
-    print("\n")
-    avrgArray.append(ppl.average)
-print(avrgArray)
-print(bestArray)
-fig, ax = plt.subplots()
-print("Total mutations occured = ", ppl.mutCount)
-print("Final Population Fitness:", ppl.fitness)
-ax.plot(avrgArray, linewidth=2.0, label='Average')
-ax.plot(bestArray, linewidth=2.0, label='Best')
-ax. legend()
-plt.show()                               
+# for i in range(1,g + 1):
+#     ppl.newGen()
+#     print("Generation ", ppl.gen)
+#     print("Best is ", ppl.best.fitness)
+#     bestArray.append(ppl.best.fitness)
+#     print("Worst is ", ppl.worst.fitness)
+#     worstArray.append(ppl.worst.fitness)
+#     print("Average is ", ppl.average)
+#     print("\n")
+#     avrgArray.append(ppl.average)
+# print(avrgArray)
+# print(bestArray)
+# fig, ax = plt.subplots()
+# print("Total mutations occured = ", ppl.mutCount)
+# print("Final Population Fitness:", ppl.fitness)
+# ax.plot(avrgArray, linewidth=2.0, label='Average')
+# ax.plot(bestArray, linewidth=2.0, label='Best')
+# ax. legend()
+# plt.show()                               

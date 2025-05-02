@@ -146,7 +146,7 @@ class Layout:
         return fitness
 
 
-    def addEntities(self, entities):
+    def add_entities(self, entities):
         id = 0
         for entity in entities:
             entity["entity_id"] = id
@@ -167,7 +167,7 @@ class Layout:
 
 
     @property
-    def autoPlacedEntities(self):
+    def auto_placed_entities(self):
         res = [] 
         for entity in self.entities:
             if entity['placement'] == 'auto':
@@ -175,7 +175,7 @@ class Layout:
         return res
     
     @property
-    def manualPlacedEntities(self):
+    def manual_placed_entities(self):
         res = [] 
         for entity in self.entities:
             if entity['placement'] == 'manual':

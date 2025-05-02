@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+  <h1>Optimisation Results</h1>
+  <h2>Top 3 Solutions</h2>
+  
+  <div class="results-grid">
+    {% for solution in solutions %}
+    <div class="solution-card">
+      <h3>Solution {{ loop.index }}</h3>
+      <div class="solution-content">
+        <div class="canvas-container">
+          <canvas id="solutionCanvas{{ loop.index }}" width="400" height="400"></canvas>
+        </div>
+        <div class="metrics-container">
+          <h4>Fitness Metrics</h4>
+          <div class="metric">
+            <span class="metric-label">Overall Fitness:</span>
+            <span class="metric-value">{{ solution.fitness|round(4) }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Travel Distance:</span>
+            <span class="metric-value">{{ solution.metrics.travel_distance|round(4) }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Congestion Risk:</span>
+            <span class="metric-value">{{ solution.metrics.congestion_risk|round(4) }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Number of Turns:</span>
+            <span class="metric-value">{{ solution.metrics.turns|round(4) }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Simulation Score:</span>
+            <span class="metric-value">{{ solution.metrics.simulation_score|round(4) }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="solution-actions">
+        <button class="button" onclick="viewSimulation({{ loop.index }})">View Simulation</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Draw solution layouts on canvases
+function drawSolution(canvasId, layout) {
+  const canvas = document.getElementById(canvasId);
+  const ctx = canvas.getContext('2d');
+  const cellSize = 20;
+  
+  // Clear canvas
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Draw grid
+  ctx.strokeStyle = '#333';
+  for (let i = 0; i <= layout.width; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * cellSize, 0);
+    ctx.lineTo(i * cellSize, layout.length * cellSize);
+    ctx.stroke();
+  }
+  for (let j = 0; j <= layout.length; j++) {
+    ctx.beginPath();
+    ctx.moveTo(0, j * cellSize);
+    ctx.lineTo(layout.width * cellSize, j * cellSize);
+    ctx.stroke();
+  }
+  
+  // Draw walls
+  ctx.fillStyle = '#333';
+  for (const [x, y] of layout.structure.wall) {
+    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+  }
+  
+  // Draw entities
+  for (const entity of layout.entities) {
+    ctx.fillStyle = entity.color || '#666';
+    const [x, y] = entity.position;
+    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+  }
+}
+
+// Initialize canvases
+{% for solution in solutions %}
+drawSolution('solutionCanvas{{ loop.index }}', {{ solution.layout|tojson }});
+{% endfor %}
+
+// View simulation for a solution
+function viewSimulation(solutionIndex) {
+  window.location.href = `/simulation?solution=${solutionIndex}`;
+}
+</script>
+
+<style>
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.solution-card {
+  background: #222;
+  border-radius: 8px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.solution-content {
+  display: flex;
+  gap: 1rem;
+}
+
+.canvas-container {
+  flex: 1;
+}
+
+.metrics-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem;
+  background: #333;
+  border-radius: 4px;
+}
+
+.metric-label {
+  color: #aaa;
+}
+
+.metric-value {
+  color: #fff;
+  font-weight: bold;
+}
+
+.solution-actions {
+  display: flex;
+  justify-content: center;
+}
+</style>
+{% endblock %} 

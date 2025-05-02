@@ -11,8 +11,8 @@ def manhattan_distance(p1, p2):
     return abs(p1[0] - p2[0]) + abs(p1[1] - p2[1])
 
 def astar(start, goal, layout, aisle_width = 1):
-    rows = len(layout)
-    cols = len(layout[0])
+    rows = layout.width
+    cols = layout.length
 
     MOVES = [
         (1, 0), (-1, 0), (0, 1), (0, -1),  # Up, Down, Left, Right
@@ -83,4 +83,8 @@ def astar(start, goal, layout, aisle_width = 1):
         path.append(current)
         current = came_from[current]
     path.reverse()
-    return path
+    
+    if path == []:
+        return None
+    else:
+        return path

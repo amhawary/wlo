@@ -3,51 +3,153 @@
 {% block content %}
 <div class="container">
     <h1>Select Configuration</h1>
-    <h2>Warehouse Options</h2>
-    
-    <form action="{{ url_for('config') }}" method="post">
-        <div class="config-grid">
-            <div class="config-section">
-                <h3>Select size of Warehouse:</h3>
-                <p>Note: 1 cell = 1m&sup2, minimum is 10x10</p>
-                <h4>Width</h4>
-                <input name="warehouse_width" value="50" type="number" label="Width">
-                <h4>Length</h4>
-                <input name="warehouse_length" value="50" type="number" label="Length">
-                <h4>Aisle Width</h4>
-                <input name="aisle_width" value="2" type="number" label="Length">
-            </div>
-
-            <div class="config-section">
-                <h3>Automatic Placement</h3>
-                <h4>Entrance/Exit/Loading Placement</h4>
-                <select name="ex_ent_placement" required>
-                    <option value="auto">Automatic</option>
-                    <option value="manual">Manual</option>
-                </select>
-                <h4>Placement</h4>
-                <select name="wall_placement" required>
-                    <option value="auto">Automatic</option>
-                    <option value="manual">Manual</option>
-                </select>
-            </div>
-            
-            <div class="config-section">
-                <h3>Select Model:</h3>
-                <select name="model" required>
-                    <option value="ga">Genetic Algorithm</option>
-                    <option value="rl">Reinforced Learning</option>
-                    <option value="gasim">Genetic Algorithm + Simulation</option>
-                </select>
-
-            </div>
-        </div>
-        
-        <div class="proceed-button-container">
-            <form id="structureForm" method="POST" action="/entities">
-                <button type="submit" class="button" style="margin-top: 10px;">Proceed</button>
-              </form>
-        </div>
-    </form>
+    <h2>Define Operation Requirements</h2>
+    <div class="config-section">
+        <table id="operationTable" border="1" style="width: 100%; border-collapse: collapse; background-color: #111; color: white; border-color: #333;">
+            <thead>
+                <tr style="background-color: #222;">
+                    <th>Operation Type</th>
+                    <th>Source Entity</th>
+                    <th>Destination Entity</th>
+                    <th>Frequency</th>
+                    <th>Priority</th>
+                    <th>Time Window</th>
+                    <th>Remove</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <select style="width: 100%; padding: 0; margin: 0;">
+                            <option value="pick">Pick</option>
+                            <option value="place">Place</option>
+                            <option value="move">Move</option>
+                            <option value="inspect">Inspect</option>
+                        </select>
+                    </td>
+                    <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Source entity ID"></td>
+                    <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Destination entity ID"></td>
+                    <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Times per hour"></td>
+                    <td>
+                        <select style="width: 100%; padding: 0; margin: 0;">
+                            <option value="low">Low</option>
+                            <option value="medium">Medium</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select style="width: 100%; padding: 0; margin: 0;">
+                            <option value="any">Any Time</option>
+                            <option value="morning">Morning (6-12)</option>
+                            <option value="afternoon">Afternoon (12-18)</option>
+                            <option value="evening">Evening (18-24)</option>
+                        </select>
+                    </td>
+                    <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="proceed-button-container">
+        <form id="operationsForm" method="POST" action="/operations">
+            <input type="hidden" name="operations_data" id="operationsData">
+            <button type="submit" class="button" style="margin-top: 10px;">Proceed</button>
+        </form>
+    </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const table = document.getElementById("operationTable").getElementsByTagName("tbody")[0];
+
+function isRowFilled(row) {
+    const inputs = row.querySelectorAll("input, select");
+    return Array.from(inputs).every(input => input.value !== "");
+}
+
+function createRow() {
+    const newRow = document.createElement("tr");
+
+    newRow.innerHTML = `
+        <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+                <option value="pick">Pick</option>
+                <option value="place">Place</option>
+                <option value="move">Move</option>
+                <option value="inspect">Inspect</option>
+            </select>
+        </td>
+        <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Source entity ID"></td>
+        <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Destination entity ID"></td>
+        <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Times per hour"></td>
+        <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+            </select>
+        </td>
+        <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+                <option value="any">Any Time</option>
+                <option value="morning">Morning (6-12)</option>
+                <option value="afternoon">Afternoon (12-18)</option>
+                <option value="evening">Evening (18-24)</option>
+            </select>
+        </td>
+        <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
+    `;
+
+    return newRow;
+}
+
+function addRowIfLastFilled() {
+    const rows = table.querySelectorAll("tr");
+    const lastRow = rows[rows.length - 1];
+    if (isRowFilled(lastRow)) {
+        const newRow = createRow();
+        table.appendChild(newRow);
+    }
+}
+
+table.addEventListener("input", addRowIfLastFilled);
+
+table.addEventListener("click", (e) => {
+    if (e.target.classList.contains("remove-btn")) {
+        const row = e.target.closest("tr");
+        if (table.rows.length > 1) {
+            row.remove();
+        } else {
+            alert("You must have at least one row.");
+        }
+    }
+});
+
+document.getElementById("operationsForm").addEventListener("submit", function (e) {
+    const operations = [];
+    const rows = document.querySelectorAll("#operationTable tbody tr");
+
+    rows.forEach(row => {
+        const inputs = row.querySelectorAll("input, select");
+        const [type, source, destination, frequency, priority, timeWindow] = Array.from(inputs).map(el => el.value.trim());
+
+        // Skip empty rows
+        if (type === "" && source === "" && destination === "") return;
+
+        operations.push({
+            type,
+            source,
+            destination,
+            frequency: parseInt(frequency) || 1,
+            priority,
+            time_window: timeWindow
+        });
+    });
+
+    document.getElementById("operationsData").value = JSON.stringify(operations);
+});
+</script>
 {% endblock %}

@@ -1,169 +1,54 @@
-{% extends "base.html" %}
+{% extends "base-canvas.html" %}
 
-{% block content %}
-<div class="container">
-  <h1>Select Configuration</h1>
-  <h2>Define Entity Requirements</h2>
-  <div class="config-section">
-    <table id="entityTable" border="1" style="width: 100%; border-collapse: collapse; background-color: #111; color: white; border-color: #333;">
-      <thead>
-        <tr style="background-color: #222;">
-          <th>Category</th>
-          <th>Entity</th>
-          <th>Placement</th>
-          <th>Quantity</th>
-          <th>Depends On (Utility)</th>
-          <th>Within Zone</th>
-          <th>Facing Direction</th>
-          <th>Remove</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Storage, Machinery"></td>
-          <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="Auto">Auto</option>
-              <option value="Manual">Manual</option>
-            </select>
-          </td>
-          <td><input type="number" class="input-cell" min="1" style="width: 100%;"></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="gas"> Gas</option>
-              <option value="electric"> Electricity</option>
-              <option value="water"> Water</option>
-              <option value="air"> Air Filter</option>
-              <option value="earth"> Earth/Grounding</option>
-              <option value="network"> Network</option>
-              <option value="security"> Security</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">None</option>
-              <option value="highTemp"> High Temperature</option>
-              <option value="lowTemp"> Low Temperature</option>
-              <option value="highHumidity"> High Humidity</option>
-              <option value="lowHumidity"> Low Humidity</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">Any</option>
-              <option value="none">North</option>
-              <option value="none">East</option>
-              <option value="none">South</option>
-              <option value="none">West</option>
-            </select>
-          </td>
-          <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="proceed-button-container">
-    <form id="entitiesForm" method="POST" action="/entities">
-      <input type="hidden" name="entities_data" id="entitiesData">
-      <button type="submit" class="button" style="margin-top: 10px;">Proceed</button>
-    </form>
-</div>
+{% block page_title %}Manual Entity Placement{% endblock %}
+{% block page_subtitle %}Place your manual entities on the canvas{% endblock %}
+{% block save_endpoint %}/place-entities{% endblock %}
+
+{% block drawing_tools %}
+<select id="structType">
+  {% for entity in session.get('placing_entities', []) %}
+  <option value="{{ entity.entity_id }}">{{ entity.type }}</option>
+  {% endfor %}
+</select>
+{% endblock %}
+
+{% block legend %}
+<div class="legend">
+  <h3>Legend</h3>
+  {% for entity in session.get('placing_entities', []) %}
+  <div><span style="background-color: {{ entity.color }};"></span> {{ entity.type }}</div>
+  {% endfor %}
 </div>
 {% endblock %}
 
+{% block struct_colors %}
+{
+  {% for entity in session.get('placing_entities', []) %}
+  "{{ entity.entity_id }}": "{{ entity.color }}",
+  {% endfor %}
+}
+{% endblock %}
+
 {% block scripts %}
+{{ super() }}
 <script>
-const table = document.getElementById("entityTable").getElementsByTagName("tbody")[0];
-
-function isRowFilled(row) {
-  const inputs = row.querySelectorAll("input, select");
-  return Array.from(inputs).every(input => input.value !== "");
-}
-
-function createRow() {
-  const newRow = document.createElement("tr");
-
-  newRow.innerHTML = `
-  <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Storage, Machinery"></td>
-  <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="Auto">Auto</option>
-              <option value="Manual">Manual</option>
-            </select>
-          </td>
-          <td><input type="number" class="input-cell" min="1" style="width: 100%; ..."></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">None</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">None</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">Any</option>
-              <option value="none">North</option>
-              <option value="none">East</option>
-              <option value="none">South</option>
-              <option value="none">West</option>
-            </select>
-          </td>
-          <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
-  `;
-
-  return newRow;
-}
-
-function addRowIfLastFilled() {
-  const rows = table.querySelectorAll("tr");
-  const lastRow = rows[rows.length - 1];
-  if (isRowFilled(lastRow)) {
-    const newRow = createRow();
-    table.appendChild(newRow);
-  }
-}
-
-table.addEventListener("input", addRowIfLastFilled);
-
-table.addEventListener("click", (e) => {
-  if (e.target.classList.contains("remove-btn")) {
-    const row = e.target.closest("tr");
-    if (table.rows.length > 1) {
-      row.remove();
-    } else {
-      alert("You must have at least one row.");
+  handleDrawCallback = function(x, y, changes, initialMap, rows, cols) {
+    const structType = document.getElementById("structType").value;
+    const key = `${x},${y}`;
+    
+    // Check if position is valid (not a wall and not occupied)
+    if (initialMap[key] === 'wall') {
+      return; // Can't place on walls
     }
-  }
-});
-
-document.getElementById("entitiesForm").addEventListener("submit", function (e) {
-  const entities = [];
-  const rows = document.querySelectorAll("#entityTable tbody tr");
-
-  rows.forEach(row => {
-    const inputs = row.querySelectorAll("input, select");
-    const [category, name, placement, quantity, depends, zone, direction] = Array.from(inputs).map(el => el.value.trim());
-
-    // Skip empty rows
-    if (category === "" && name === "") return;
-
-    entities.push({
-      category,
-      name,
-      placement,
-      quantity: parseInt(quantity) || 1,
-      depends_on: depends,
-      within_zone: zone,
-      facing: direction
-    });
-  });
-
-  document.getElementById("entitiesData").value = JSON.stringify(entities);
-});
+    
+    // Check if position is already occupied
+    for (let existingKey in changes) {
+      if (changes[existingKey] === structType) {
+        delete changes[existingKey]; // Remove previous position
+      }
+    }
+    
+    changes[key] = structType;
+  };
 </script>
 {% endblock %}
