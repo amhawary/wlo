@@ -1,0 +1,3 @@
+[submodule "optimiser/simulation/CBSH2-RTC-CHBP"]
+	path = optimiser/simulation/CBSH2-RTC-CHBP
+	url = https://github.com/bshen95/CBSH2-RTC-CHBP.git
