@@ -7,7 +7,7 @@
 {% block drawing_tools %}
 <select id="structType">
   {% for entity in session.get('placing_entities', []) %}
-  <option value="{{ entity.entity_id }}">{{ entity.type }}</option>
+  <option value="{{ entity.id }}" data-name="{{ entity.type }}">{{ entity.type }} {{ entity.id }}</option>
   {% endfor %}
 </select>
 {% endblock %}
@@ -16,15 +16,16 @@
 <div class="legend">
   <h3>Legend</h3>
   {% for entity in session.get('placing_entities', []) %}
-  <div><span style="background-color: {{ entity.color }};"></span> {{ entity.type }}</div>
+  <div><span class="legend-box" style="background-color: grey;" data-id="{{ entity.id }}"></span> {{ entity.type }}</div>
   {% endfor %}
 </div>
 {% endblock %}
 
 {% block struct_colors %}
 {
-  {% for entity in session.get('placing_entities', []) %}
-  "{{ entity.entity_id }}": "{{ entity.color }}",
+  "wall": "#333"
+  {% for entity in session.get('placing_entities', []) %},
+  "{{ entity.id }}": "random"  // Will be overridden in JS
   {% endfor %}
 }
 {% endblock %}
@@ -32,23 +33,95 @@
 {% block scripts %}
 {{ super() }}
 <script>
-  handleDrawCallback = function(x, y, changes, initialMap, rows, cols) {
-    const structType = document.getElementById("structType").value;
-    const key = `${x},${y}`;
-    
-    // Check if position is valid (not a wall and not occupied)
-    if (initialMap[key] === 'wall') {
-      return; // Can't place on walls
-    }
-    
-    // Check if position is already occupied
-    for (let existingKey in changes) {
-      if (changes[existingKey] === structType) {
-        delete changes[existingKey]; // Remove previous position
+let hoverX = null;
+let hoverY = null;
+
+// Generate consistent colors for each entity
+const entityColors = {};
+const palette = ['#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231', '#911eb4', '#46f0f0', '#f032e6'];
+const placingEntities = {{ session.get('placing_entities', []) | tojson }};
+
+for (let i = 0; i < placingEntities.length; i++) {
+  entityColors[placingEntities[i].id] = palette[i % palette.length];
+  // Patch structColors for rendering logic
+  structColors[placingEntities[i].id] = palette[i % palette.length];
+}
+
+function getSelectedEntityId() {
+  return document.getElementById("structType").value;
+}
+
+function getFootprintForEntity(entityId) {
+  const entity = placingEntities.find(e => e.id == entityId);
+  return entity && entity.footprint ? entity.footprint : [[0, 0]];
+}
+
+// Override drawGrid to also draw hover
+const baseDrawGrid = drawGrid;
+drawGrid = function() {
+  baseDrawGrid();
+
+  if (hoverX !== null && hoverY !== null) {
+    const entityId = getSelectedEntityId();
+    const color = entityColors[entityId];
+    const footprint = getFootprintForEntity(entityId);
+
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = color;
+    for (const [dx, dy] of footprint) {
+      const x = hoverX + dx, y = hoverY + dy;
+      if (x >= 0 && y >= 0 && x < cols && y < rows) {
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
     }
-    
-    changes[key] = structType;
-  };
+    ctx.globalAlpha = 1.0;
+  }
+};
+
+// Mouse tracking
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  hoverX = Math.floor((e.clientX - rect.left) / cellSize);
+  hoverY = Math.floor((e.clientY - rect.top) / cellSize);
+  drawGrid();
+});
+
+canvas.addEventListener("mouseleave", () => {
+  hoverX = null;
+  hoverY = null;
+  drawGrid();
+});
+
+// Entity placement
+handleDrawCallback = function(x, y, changes, initialLayout, rows, cols) {
+  const entityId = getSelectedEntityId();
+  const footprint = getFootprintForEntity(entityId);
+
+  // Convert layout to quick lookup map if needed
+  const initialMap = {};
+  for (const [type, positions] of Object.entries(initialLayout)) {
+    for (const [ix, iy] of positions) {
+      initialMap[`${ix},${iy}`] = type;
+    }
+  }
+
+  // Check if all positions in footprint are available
+  for (const [dx, dy] of footprint) {
+    const tx = x + dx, ty = y + dy;
+    const key = `${tx},${ty}`;
+    if (
+      tx < 0 || ty < 0 || tx >= cols || ty >= rows ||
+      initialMap[key] === 'wall' || changes[key]
+    ) {
+      return; // Invalid spot
+    }
+  }
+
+  // Place entity
+  for (const [dx, dy] of footprint) {
+    const key = `${x + dx},${y + dy}`;
+    changes[key] = entityId;
+  }
+};
 </script>
 {% endblock %}

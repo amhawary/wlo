@@ -6,8 +6,10 @@
   <h2>{% block page_subtitle %}{% endblock %}</h2>
 
   <div class="config-grid" style="display: flex; gap: 1rem;">
-    <div class="config-section" style="display: inline-block;">
+    <div class="config-section" style="display: inline-block;">      
       <canvas id="structCanvas" width="800" height="800" style="display: block;"></canvas>
+      {% block extra_canvas_elements %}
+      {% endblock %}
     </div>
 
     <div class="config-section" style="flex: 1;">
@@ -41,14 +43,10 @@
   const initialLayout = {{ session.get('initial_layout') | tojson }};
   const initialMap = {}
   for (const [type, positions] of Object.entries(initialLayout)) {
-    console.log(positions)
     for (const [x, y] of positions) {
-      console.log(x)
-      console.log(y)
       initialMap[`${x},${y}`] = type;
     }
   }
-  console.log(initialMap)
 
   function drawGrid() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);

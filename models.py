@@ -1,4 +1,5 @@
 import random
+import copy
 
 class Layout:
     def __init__(self, width, length) -> None:
@@ -8,6 +9,7 @@ class Layout:
         self.builder = Builder(self)
 
         self.entities = []
+        self.operations = []  # Initialize operations as a list
         self.structure = {
             'wall':[],
             'loading':[],
@@ -31,26 +33,27 @@ class Layout:
     	    'security': [],
         }
 
-        self.operations = {}
-        
+        self.operations = []
+
         for x in range(0, width + 2):
-            self.structure['wall'].append((x, 0))
-            self.structure['wall'].append((x, length + 1))
+            pos1 = (x, 0)
+            pos2 = (x, length + 1)
+            self.structure['wall'].append(pos1)
+            self.structure['wall'].append(pos2)
 
         for y in range(0, length + 1):
-            self.structure['wall'].append((0, y))
-            self.structure['wall'].append((width + 1, y))
-
-    def get_fitness(self):
-       return 0 
-    
-    def get_cell(x, y):
-        result = []
-        return 
+            pos1 = (0, y)
+            pos2 = (width + 1, y)
+            self.structure['wall'].append(pos1)
+            self.structure['wall'].append(pos2)
 
     def add_structure(self, layout):
         for coord in layout.keys():
-            self.structure[layout[coord]].append([int(n) for n in coord.split(',')])
+            pos = tuple([int(n) for n in coord.split(',')])
+            entity_type = layout[coord]
+            self.structure[entity_type].append(pos)
+            if entity_type != "wall":
+                self.add_entities([])
 
     def add_zones(self, layout):
         for coord in layout.keys():
@@ -61,36 +64,19 @@ class Layout:
             self.utilities[layout[coord]].append([int(n) for n in coord.split(',')])
 
     def add_entities(self, entities):
-        id = 0
+        id = len(self.entities)
         for entity in entities:
-            entity['entity_id'] = id
-            # Set initial position for auto-placed entities
-            if entity.get('placement') == 'auto':
-                # Find available position
-                available_positions = []
-                for x in range(1, self.width + 1):
-                    for y in range(1, self.length + 1):
-                        pos = (x, y)
-                        if (pos not in self.structure.get('wall', []) and 
-                            pos not in self.structure.get('aisle', []) and
-                            not any(e.get('position') == pos for e in self.entities)):
-                            available_positions.append(pos)
-                
-                if available_positions:
-                    entity['position'] = available_positions[0]  # Use first available position
-                else:
-                    # If no available positions, place at a random position
-                    entity['position'] = (
-                        random.randint(1, self.width),
-                        random.randint(1, self.length)
-                    )
-            self.entities.append(entity)
-            id += 1
+                print(entity)
+                print(entity["quantity"])
+                for i in range (entity["quantity"]):
+                    entity['id'] = id
+                    self.entities.append(entity)
+                    id += 1
 
     def add_operations(self, operations):
-        id = 0
+        id = len(self.operations)
         for op in operations:
-            op['operations_id'] = id
+            op['id'] = id
             self.operations.append(op)
             id += 1
 
@@ -111,7 +97,20 @@ class Layout:
         return res
 
     def getStructureMap(self):
-        return self.structure
+        # Convert entities back to structure map for compatibility
+        structure_map = {
+            'wall': [],
+            'loading': [],
+            'ex': [],
+            'ent': [],
+            'ex_ent': [],
+        }
+        
+        for entity in self.entities:
+            if entity['category'] == 'structure':
+                structure_map[entity['type']].append(entity['position'])
+                
+        return structure_map
 
     def getZoneMap():
         pass
@@ -142,20 +141,23 @@ class Layout:
         return layout
     
 class Operation:
-    def __init__(self, from_entity, to_entity, frequency=1):
+    def __init__(self, from_entity, to_entity, frequency=1, id=None):
+        self.id = id
         self.from_entity = from_entity
         self.to_entity = to_entity
         self.frequency = frequency
 
 class Entity:
-    def __init__(self, category, type_, placement, quantity, depends_on, within_zone, facing_direction):
+    def __init__(self, category, type_, placement, quantity, width, length, depends_on, within_zone, id=None):
+        self.id = id
         self.category = category
         self.type = type_
         self.placement = placement
         self.quantity = quantity
+        self.width = width
+        self.length = length
         self.depends_on = depends_on
         self.within_zone = within_zone
-        self.facing_direction = facing_direction
         self.positions = []
 
 
@@ -199,6 +201,44 @@ class Builder:
             zone_type = entity['within_zone']
             if pos not in self.layout.zones.get(zone_type, []):
                 return False
+
+        # Check if at least one cell of the entity has access to an aisle
+        # This is done by checking if any of the entity's cells has an adjacent aisle
+        width = entity.get('width', 1)
+        length = entity.get('length', 1)
+        
+        # Get all cells that would be occupied by this entity
+        entity_cells = []
+        for x in range(pos[0], pos[0] + width):
+            for y in range(pos[1], pos[1] + length):
+                entity_cells.append((x, y))
+        
+        # Check if any cell has access to an aisle
+        has_access = False
+        for cell in entity_cells:
+            # Check adjacent cells (up, down, left, right)
+            adjacent_cells = [
+                (cell[0], cell[1] - 1),  # up
+                (cell[0], cell[1] + 1),  # down
+                (cell[0] - 1, cell[1]),  # left
+                (cell[0] + 1, cell[1])   # right
+            ]
+            
+            for adj_cell in adjacent_cells:
+                # Check if adjacent cell is within bounds
+                if not (1 <= adj_cell[0] <= self.layout.width and 1 <= adj_cell[1] <= self.layout.length):
+                    continue
+                
+                # Check if adjacent cell is an aisle
+                if adj_cell in self.layout.structure.get('aisle', []):
+                    has_access = True
+                    break
+            
+            if has_access:
+                break
+                
+        if not has_access:
+            return False
                 
         return True
 
@@ -208,12 +248,31 @@ class Builder:
             raise ValueError("A* function not set")
             
         for operation in self.layout.operations:
-            from_pos = operation.from_entity
-            to_pos = operation.to_entity
+            # Handle both coordinate-based and entity-based operations
+            if isinstance(operation["from_entity"], tuple):
+                # Coordinate-based operation
+                from_pos = operation["from_entity"]
+                to_pos = operation["to_entity"]
+                # Create dummy entities for validation
+                from_entity = {"width": 1, "length": 1}
+                to_entity = {"width": 1, "length": 1}
+            else:
+                # Entity-based operation
+                from_entity = next((e for e in self.layout.entities if e.get('id') == operation["from_entity"]), None)
+                to_entity = next((e for e in self.layout.entities if e.get('id') == operation["to_entity"]), None)
+                
+                if not from_entity or not to_entity:
+                    return False
+                    
+                from_pos = from_entity.get('position')
+                to_pos = to_entity.get('position')
+                
+                if not from_pos or not to_pos:
+                    return False
             
             # Check if both positions are valid
-            if not (self.is_position_valid(from_pos, {}) and 
-                   self.is_position_valid(to_pos, {})):
+            if not (self.is_position_valid(from_pos, from_entity) and 
+                   self.is_position_valid(to_pos, to_entity)):
                 return False
                 
             # Check if path exists
@@ -258,3 +317,203 @@ class Builder:
                 
         # If we couldn't find a valid layout after max attempts
         return False
+
+    def crossover_layouts(self, parent1, parent2):
+        """Create a child layout by combining two parents."""
+        child = copy.deepcopy(parent1)
+        
+        # Get clusters from both parents
+        parent1_clusters = self._find_clusters(parent1)
+        parent2_clusters = self._find_clusters(parent2)
+        
+        # Crossover probabilities
+        cluster_swap_prob = 0.7  # High probability to swap entire clusters
+        single_entity_prob = 0.1  # Low probability to swap single entities
+        
+        # Try to swap clusters first
+        for cluster in parent1_clusters:
+            if random.random() < cluster_swap_prob:
+                # Find a matching cluster in parent2 (same entity types)
+                cluster_type = cluster[0][1]['type']
+                matching_clusters = [c for c in parent2_clusters 
+                                  if c[0][1]['type'] == cluster_type]
+                
+                if matching_clusters:
+                    # Swap positions with a random matching cluster
+                    parent2_cluster = random.choice(matching_clusters)
+                    for (i1, e1), (i2, e2) in zip(cluster, parent2_cluster):
+                        child.auto_placed_entities[i1]['position'] = e2['position']
+        
+        # Then maybe swap some individual entities
+        for i, entity in enumerate(child.auto_placed_entities):
+            if random.random() < single_entity_prob:
+                # Find entities of the same type in parent2
+                same_type = [(j, e) for j, e in enumerate(parent2.auto_placed_entities)
+                            if e['type'] == entity['type']]
+                if same_type:
+                    j, other = random.choice(same_type)
+                    child.auto_placed_entities[i]['position'] = other['position']
+        
+        # Validate and repair the child layout
+        if not self.has_valid_paths():
+            # Try to repair by adjusting cluster positions
+            clusters = self._find_clusters(child)
+            for cluster in clusters:
+                # Try to move the entire cluster to a new valid location
+                available = list(self.get_available_positions())
+                if available:
+                    base_pos = random.choice(available)
+                    old_positions = []
+                    
+                    # Move all entities in cluster relative to the new base position
+                    for i, entity in cluster:
+                        old_positions.append(entity['position'])
+                        dx = entity['position'][0] - cluster[0][1]['position'][0]
+                        dy = entity['position'][1] - cluster[0][1]['position'][1]
+                        new_x = base_pos[0] + dx
+                        new_y = base_pos[1] + dy
+                        
+                        if 0 <= new_x < child.width and 0 <= new_y < child.length:
+                            entity['position'] = (new_x, new_y)
+                    
+                    # If still invalid, revert the cluster
+                    if not self.has_valid_paths():
+                        for (i, entity), old_pos in zip(cluster, old_positions):
+                            entity['position'] = old_pos
+            
+            # If still invalid after repairs, return one of the parents
+            if not self.has_valid_paths():
+                return random.choice([parent1, parent2])
+        
+        return child
+
+    def mutate_layout(self, layout):
+        """Mutate a layout by moving entities, preserving clusters when possible."""
+        # Find existing clusters
+        clusters = self._find_clusters(layout)
+        
+        # Mutation probabilities
+        cluster_mutation_prob = 0.3  # Probability to mutate an entire cluster
+        single_mutation_prob = 0.1   # Lower probability to mutate single entities
+        
+        # Try to mutate clusters first
+        for cluster in clusters:
+            if random.random() < cluster_mutation_prob:
+                # Get all valid positions for the base entity
+                available_positions = list(self.get_available_positions())
+                if not available_positions:
+                    continue
+                
+                # Save old positions in case we need to revert
+                old_positions = []
+                base_pos = random.choice(available_positions)
+                
+                # Move all entities in cluster relative to the new base position
+                for i, entity in cluster:
+                    old_positions.append(entity['position'])
+                    dx = entity['position'][0] - cluster[0][1]['position'][0]
+                    dy = entity['position'][1] - cluster[0][1]['position'][1]
+                    new_x = base_pos[0] + dx
+                    new_y = base_pos[1] + dy
+                    
+                    if 0 <= new_x < layout.width and 0 <= new_y < layout.length:
+                        entity['position'] = (new_x, new_y)
+                
+                # If the new positions make the layout invalid, revert
+                if not self.has_valid_paths():
+                    for (i, entity), old_pos in zip(cluster, old_positions):
+                        entity['position'] = old_pos
+        
+        # Then try to mutate some individual entities
+        for i, entity in enumerate(layout.auto_placed_entities):
+            if random.random() < single_mutation_prob:
+                available = [pos for pos in self.get_available_positions() 
+                           if self.is_position_valid(pos, entity)]
+                if available:
+                    old_pos = entity['position']
+                    entity['position'] = random.choice(available)
+                    
+                    if not self.has_valid_paths():
+                        entity['position'] = old_pos
+
+    def _find_clusters(self, layout):
+        """Find clusters of entities based on type and proximity."""
+        clusters = []
+        used_entities = set()
+        
+        # Parameters for clustering
+        proximity_threshold = 3  # Maximum distance between entities in a cluster
+        
+        for i, entity in enumerate(layout.auto_placed_entities):
+            if i in used_entities:
+                continue
+            
+            # Start a new cluster
+            cluster = [(i, entity)]
+            used_entities.add(i)
+            
+            # Find nearby entities of the same type
+            for j, other in enumerate(layout.auto_placed_entities):
+                if j in used_entities:
+                    continue
+                
+                if entity['type'] == other['type']:
+                    pos1 = entity['position']
+                    pos2 = other['position']
+                    distance = abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
+                    
+                    if distance <= proximity_threshold:
+                        cluster.append((j, other))
+                        used_entities.add(j)
+            
+            clusters.append(cluster)
+        
+        return clusters
+
+    def find_entity_access_point(self, entity_id):
+        """Find the access point for a specific entity by its ID.
+        
+        Args:
+            entity_id: The ID of the entity to find the access point for
+            
+        Returns:
+            tuple: (access_point, adjacent_cell) where:
+                - access_point is the cell of the entity that has access
+                - adjacent_cell is the adjacent aisle cell that provides access
+            Returns (None, None) if no access point is found
+        """
+        # Find the entity by ID
+        entity = next((e for e in self.layout.entities if e.get('id') == entity_id), None)
+        if not entity or not entity.get('position'):
+            return None, None
+            
+        pos = entity['position']
+        width = entity.get('width', 1)
+        length = entity.get('length', 1)
+        
+        # Get all cells occupied by the entity
+        entity_cells = []
+        for x in range(pos[0], pos[0] + width):
+            for y in range(pos[1], pos[1] + length):
+                entity_cells.append((x, y))
+        
+        # Check each cell for access to an aisle
+        for cell in entity_cells:
+            # Check adjacent cells (up, down, left, right)
+            adjacent_cells = [
+                (cell[0], cell[1] - 1),  # up
+                (cell[0], cell[1] + 1),  # down
+                (cell[0] - 1, cell[1]),  # left
+                (cell[0] + 1, cell[1])   # right
+            ]
+            
+            for adj_cell in adjacent_cells:
+                # Check if adjacent cell is within bounds
+                if not (1 <= adj_cell[0] <= self.layout.width and 1 <= adj_cell[1] <= self.layout.length):
+                    continue
+                
+                # Check if adjacent cell is an aisle
+                if adj_cell in self.layout.structure.get('aisle', []):
+                    return cell, adj_cell
+        
+        return None, None

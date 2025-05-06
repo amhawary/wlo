@@ -9,12 +9,13 @@
       <thead>
         <tr style="background-color: #222;">
           <th>Category</th>
-          <th>Entity</th>
+          <th>Type</th>
           <th>Placement</th>
           <th>Quantity</th>
+          <th>Width</th>
+          <th>Length</th>
           <th>Depends On (Utility)</th>
           <th>Within Zone</th>
-          <th>Facing Direction</th>
           <th>Remove</th>
         </tr>
       </thead>
@@ -24,21 +25,37 @@
           <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
           <td>
             <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="Auto">Auto</option>
-              <option value="Manual">Manual</option>
+              <option value="auto">Auto</option>
+              <option value="manual">Manual</option>
             </select>
           </td>
           <td><input type="number" class="input-cell" min="1" style="width: 100%;"></td>
+          <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Width"></td>
+          <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Length"></td>
           <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="gas"> Gas</option>
-              <option value="electric"> Electricity</option>
-              <option value="water"> Water</option>
-              <option value="air"> Air Filter</option>
-              <option value="earth"> Earth/Grounding</option>
-              <option value="network"> Network</option>
-              <option value="security"> Security</option>
-            </select>
+            <div class="utility-checkboxes" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; max-height: 100px; overflow-y: auto; padding: 2px;">
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="gas"> Gas
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="electric"> Elec
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="water"> Water
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="air"> Air
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="earth"> Earth
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="network"> Net
+              </label>
+              <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+                <input type="checkbox" value="security"> Sec
+              </label>
+            </div>
           </td>
           <td>
             <select style="width: 100%; padding: 0; margin: 0;">
@@ -47,15 +64,6 @@
               <option value="lowTemp"> Low Temperature</option>
               <option value="highHumidity"> High Humidity</option>
               <option value="lowHumidity"> Low Humidity</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">Any</option>
-              <option value="none">North</option>
-              <option value="none">East</option>
-              <option value="none">South</option>
-              <option value="none">West</option>
             </select>
           </td>
           <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
@@ -87,33 +95,50 @@ function createRow() {
   newRow.innerHTML = `
   <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Storage, Machinery"></td>
   <td><input type="text" class="input-cell" style="width: 100%;" placeholder="eg: Shelf, Station"></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="Auto">Auto</option>
-              <option value="Manual">Manual</option>
-            </select>
-          </td>
-          <td><input type="number" class="input-cell" min="1" style="width: 100%; ..."></td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">None</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">None</option>
-            </select>
-          </td>
-          <td>
-            <select style="width: 100%; padding: 0; margin: 0;">
-              <option value="none">Any</option>
-              <option value="none">North</option>
-              <option value="none">East</option>
-              <option value="none">South</option>
-              <option value="none">West</option>
-            </select>
-          </td>
-          <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
+  <td>
+    <select style="width: 100%; padding: 0; margin: 0;">
+      <option value="auto">Auto</option>
+      <option value="manual">Manual</option>
+    </select>
+  </td>
+  <td><input type="number" class="input-cell" min="1" style="width: 100%;"></td>
+  <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Width"></td>
+  <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Length"></td>
+  <td>
+    <div class="utility-checkboxes" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; max-height: 100px; overflow-y: auto; padding: 2px;">
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="gas"> Gas
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="electric"> Elec
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="water"> Water
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="air"> Air
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="earth"> Earth
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="network"> Net
+      </label>
+      <label style="display: flex; align-items: center; gap: 2px; font-size: 0.8em; white-space: nowrap;">
+        <input type="checkbox" value="security"> Sec
+      </label>
+    </div>
+  </td>
+  <td>
+    <select style="width: 100%; padding: 0; margin: 0;">
+      <option value="none">None</option>
+      <option value="highTemp"> High Temperature</option>
+      <option value="lowTemp"> Low Temperature</option>
+      <option value="highHumidity"> High Humidity</option>
+      <option value="lowHumidity"> Low Humidity</option>
+    </select>
+  </td>
+  <td><button type="button" class="remove-btn" style="background-color: #111; color:white; width: 100%;">X</button></td>
   `;
 
   return newRow;
@@ -146,18 +171,22 @@ document.getElementById("entitiesForm").addEventListener("submit", function (e) 
   const rows = document.querySelectorAll("#entityTable tbody tr");
 
   rows.forEach(row => {
-    const inputs = row.querySelectorAll("input, select");
-    const [category, name, placement, quantity, depends, zone, direction] = Array.from(inputs).map(el => el.value.trim());
+    const inputs = row.querySelectorAll("input:not([type='checkbox']), select");
+    const checkboxes = row.querySelectorAll("input[type='checkbox']:checked");
+    const [category, type, placement, quantity, width, length, zone, direction] = Array.from(inputs).map(el => el.value.trim());
+    const depends_on = Array.from(checkboxes).map(cb => cb.value);
 
     // Skip empty rows
-    if (category === "" && name === "") return;
+    if (category === "" && type === "") return;
 
     entities.push({
       category,
-      name,
+      type,
       placement,
       quantity: parseInt(quantity) || 1,
-      depends_on: depends,
+      width: parseInt(width) || 1,
+      length: parseInt(length) || 1,
+      depends_on: depends_on.length > 0 ? depends_on : ["none"],
       within_zone: zone,
       facing: direction
     });

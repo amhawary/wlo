@@ -3,7 +3,7 @@ import json
 import uuid
 import mesa
 from models import *
-import optimiser
+import optimiser as op
 
 app = Flask(
     __name__,
@@ -36,7 +36,6 @@ def config():
             'aisle_width': int(request.form.get('aisle_width')),
             'ex_ent_placement': ex_ent_placement,
             'wall_placement': wall_placement,
-            'model': request.form.get('model')
         }
         
         session['layout_obj'] = Layout(warehouse_width, warehouse_length).to_dict()
@@ -108,12 +107,15 @@ def entities():
         session['layout_obj'] = layout.to_dict()
 
         manual_placement = layout.manual_placed_entities
+        print(manual_placement)
 
-        return redirect(url_for('optimiser'))
+        # return redirect(url_for('optimiser'))
+        
         if len(manual_placement) > 0:
             session['placing_entities'] = manual_placement
             return redirect(url_for('place_entities'))
         else:
+            session['all_entities'] = layout.entities
             return redirect(url_for('operations'))
    
     return render_template('entities.html')
@@ -122,6 +124,13 @@ def entities():
 def place_entities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
+        layout = Layout.from_dict(session["layout_obj"])
+        layout_json = request.form.get('entities_data')
+        entities = json.loads(layout_json)  # ← Parse JSON string into dic
+
+        layout.add_entities(entities)
+        session['layout_obj'] = layout.to_dict()
+        session['all_entities'] = layout.entities
         return redirect(url_for('operations'))
     return render_template('place-entities.html')
 
@@ -157,10 +166,18 @@ def operations():
 def optimiser():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
-        pass
+        layout = Layout.from_dict(session["layout_obj"])
+
+        algorithm = request.form.get('algorithm')
+        function = request.form.get('function')
+        simulation = request.form.get('simulation')
+
+        session['optimiser'] = op.Optimiser(layout, algorithm, function, simulation)
+        session['results'] = session['optimiser'].run_optimsation()
+        return redirect(url_for('optimiser_results'))
     return render_template('optimiser.html')
 
-@app.route('/optimiser_results', methods=['GET', 'POST'])
+@app.route('/optimiser-results', methods=['GET', 'POST'])
 def optimiser_results():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
