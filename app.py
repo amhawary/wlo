@@ -34,17 +34,13 @@ def config():
             'warehouse_width': warehouse_width,
             'warehouse_length': warehouse_length,
             'aisle_width': int(request.form.get('aisle_width')),
-            'ex_ent_placement': ex_ent_placement,
-            'wall_placement': wall_placement,
         }
         
         session['layout_obj'] = Layout(warehouse_width, warehouse_length).to_dict()
         session['initial_layout'] = session['layout_obj']['structure']
-        if wall_placement=='manual' or ex_ent_placement=='manual':
-            return redirect(url_for('structure'))         
-        else:
-            return redirect(url_for('zones'))
-        
+
+        return redirect(url_for('structure'))
+         
     return render_template('config.html')
 
 @app.route('/structure', methods=['GET', 'POST'])
@@ -125,10 +121,10 @@ def place_entities():
     """Configuration page for entities like shelves and stations"""
     if request.method == 'POST':
         layout = Layout.from_dict(session["layout_obj"])
-        layout_json = request.form.get('entities_data')
+        layout_json = request.form.get('layout_data')
         entities = json.loads(layout_json)  # ← Parse JSON string into dic
 
-        layout.add_entities(entities)
+        layout.add_positions(entities)
         session['layout_obj'] = layout.to_dict()
         session['all_entities'] = layout.entities
         return redirect(url_for('operations'))
@@ -145,16 +141,17 @@ def operations():
         # Validate operations
         for op in operations:
             # Check if source and destination entities exist
-            source_exists = any(entity.get('entity_id') == op['source'] for entity in layout.entities)
-            dest_exists = any(entity.get('entity_id') == op['destination'] for entity in layout.entities)
+            source_exists = any(str(entity.get('id')) == op['from_entity'] for entity in layout.entities)
+            dest_exists = any(str(entity.get('id')) == op['to_entity'] for entity in layout.entities)
             
             if not source_exists or not dest_exists:
                 return jsonify({
                     "status": "error",
-                    "message": f"Invalid entity IDs in operation: source={op['source']}, destination={op['destination']}"
+                    "message": f"Invalid entity IDs in operation: source={op['from_entity']}, destination={op['to_entity']}"
                 }), 400
 
         # Add operations to layout
+        print(operations)
         layout.add_operations(operations)
         session['layout_obj'] = layout.to_dict()
 
@@ -171,17 +168,29 @@ def optimiser():
         algorithm = request.form.get('algorithm')
         function = request.form.get('function')
         simulation = request.form.get('simulation')
+        # session['optimiser'] = op.Optimiser(layout, algorithm, function, simulation)
+        # session['results'] = session['optimiser'].run_optimisation()
 
-        session['optimiser'] = op.Optimiser(layout, algorithm, function, simulation)
-        session['results'] = session['optimiser'].run_optimsation()
+        opti = op.Optimiser(layout, algorithm, function, simulation)
+        opti.run_optimisation()
+
+        session['algorithm'] = algorithm
+        session['function'] = function
+        session['simulation'] = simulation
+
+        session['layout_results'] = opti.export_layouts()
+        print(session['layout_results'])
         return redirect(url_for('optimiser_results'))
     return render_template('optimiser.html')
 
 @app.route('/optimiser-results', methods=['GET', 'POST'])
 def optimiser_results():
     """Configuration page for entities like shelves and stations"""
-    if request.method == 'POST':
-        pass
+    layout = session['layout_results'][0]
+    draw_text_layout(layout)
+
+    if request.method == 'POST': 
+        return redirect(url_for('simulation'))
     return render_template('optimiser-results.html')
 
 @app.route('/hyperparameters')
@@ -191,60 +200,17 @@ def hyperparameters():
 
 @app.route('/simulation')
 def simulation():
-    """Page displaying the Mesa visualization"""
-    if 'config' not in session or 'entities' not in session:
-        return redirect(url_for('index'))
-    
-    # Create unique ID for this simulation
-    sim_id = str(uuid.uuid4())
-    
-    # Create model with configuration from session
-    model_params = {
-        **session.get('config', {}),
-        **session.get('entities', {}),
-        **session.get('parameters', {})
-    }
-    
-    # Store model_params for later use in the Mesa server
-    session['model_params'] = model_params
-    
-    return render_template('simulation.html', sim_id=sim_id)
+    if request.method == 'GET': 
+        layout = Layout.from_dict(session["layout_obj"])
+        algorithm = session['algorithm'] 
+        function = session['function']
+        simulation=session['simulation']
 
-@app.route('/api/start_simulation', methods=['POST'])
-def start_simulation():
-    """API endpoint to start a new simulation"""
-    model_params = session.get('model_params', {})
-    
-    # Create visualization elements
-    grid_size = int(model_params.get('warehouse_size', 20))
-    grid = mesa.visualization.CanvasGrid(portrayal, 20, 20, 400, 400)
-
-    # Add charts
-    # efficiency_chart = ChartModule([
-    #     {"Label": "Efficiency", "Color": "Black"}
-    # ])
-    
-    # Create and store the server
-    server = mesa.visualization.ModularServer(
-        WarehouseModel,
-        [grid],
-        "Warehouse Layout Optimizer",
-        model_params
-    )
-    
-    # Generate a port number (this would need proper handling in production)
-    port = 8521  # Mesa's default port
-    
-    # Start the server in a separate thread
-    server.launch(port=port)
-    
-    return jsonify({
-        "status": "success",
-        "port": port,
-        "message": "Simulation started successfully"
-    })
-
-
+        opti = op.Optimiser(layout, algorithm, function, simulation)
+        opti.import_layouts(session['layout_results'])
+ 
+        opti.run_simulation()
+    return render_template('simulation.html')
 
 @app.route('/api/update_parameter', methods=['POST'])
 def update_parameter():
@@ -260,6 +226,31 @@ def update_parameter():
         "status": "success",
         "message": f"Updated {parameter} to {value}"
     })
+
+def draw_text_layout(layout):
+    height = layout['length']
+    width = layout['width']
+    
+    # Initialize grid with dots
+    grid = [['.' for _ in range(width+1)] for _ in range(height+1)]
+
+    # Place walls
+    for x, y in layout['structure']['wall']:
+        if 0 <= x < height and 0 <= y < width:
+            grid[x][y] = '#'
+
+    # Place entities
+    for entity in layout['entities']:
+        symbol = entity['type'][0].upper()
+        for x, y in entity['positions']:
+            if 0 <= x < height and 0 <= y < width:
+                grid[x][y] = symbol
+
+    # Print grid with column headers
+    print('   ' + ' '.join(f'{i:>2}' for i in range(width)))
+    for i, row in enumerate(grid):
+        print(f'{i:>2} ' + ' '.join(row))
+
 
 if __name__ == '__main__':
     app.run(debug=True)

@@ -16,7 +16,7 @@
 <div class="legend">
   <h3>Legend</h3>
   {% for entity in session.get('placing_entities', []) %}
-  <div><span class="legend-box" style="background-color: grey;" data-id="{{ entity.id }}"></span> {{ entity.type }}</div>
+  <div><span class="legend-box" style="background-color: grey;" data_id="{{ entity.id }}"></span> {{ entity.type }} {{ entity.id }}</div>
   {% endfor %}
 </div>
 {% endblock %}
@@ -45,6 +45,7 @@ for (let i = 0; i < placingEntities.length; i++) {
   entityColors[placingEntities[i].id] = palette[i % palette.length];
   // Patch structColors for rendering logic
   structColors[placingEntities[i].id] = palette[i % palette.length];
+
 }
 
 function getSelectedEntityId() {
@@ -53,7 +54,7 @@ function getSelectedEntityId() {
 
 function getFootprintForEntity(entityId) {
   const entity = placingEntities.find(e => e.id == entityId);
-  return entity && entity.footprint ? entity.footprint : [[0, 0]];
+  return entity && entity.footprint ? entity.footprint : [[0, 0], [0,1]];
 }
 
 // Override drawGrid to also draw hover
@@ -117,11 +118,24 @@ handleDrawCallback = function(x, y, changes, initialLayout, rows, cols) {
     }
   }
 
+  // Check if this entity was placed elsewhere, remove old position
+  for (let k in changes) {
+      if (changes[k] === entityId) {
+        delete changes[k];
+      }
+    }
+
   // Place entity
   for (const [dx, dy] of footprint) {
     const key = `${x + dx},${y + dy}`;
     changes[key] = entityId;
   }
 };
+
+document.querySelectorAll('legend-box').forEach(box => {
+    const id = box.data_id;
+    box.style.backgroundColor = entityColors[id];
+  });
+
 </script>
 {% endblock %}

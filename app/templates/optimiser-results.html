@@ -6,7 +6,7 @@
   <h2>Top 3 Solutions</h2>
   
   <div class="results-grid">
-    {% for solution in solutions %}
+    {% for solution in session.get('layout_results') %}
     <div class="solution-card">
       <h3>Solution {{ loop.index }}</h3>
       <div class="solution-content">
@@ -17,25 +17,9 @@
           <h4>Fitness Metrics</h4>
           <div class="metric">
             <span class="metric-label">Overall Fitness:</span>
-            <span class="metric-value">{{ solution.fitness|round(4) }}</span>
+            <span class="metric-value">{{ solution.fitness}}</span>
           </div>
-          <div class="metric">
-            <span class="metric-label">Travel Distance:</span>
-            <span class="metric-value">{{ solution.metrics.travel_distance|round(4) }}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Congestion Risk:</span>
-            <span class="metric-value">{{ solution.metrics.congestion_risk|round(4) }}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Number of Turns:</span>
-            <span class="metric-value">{{ solution.metrics.turns|round(4) }}</span>
-          </div>
-          <div class="metric">
-            <span class="metric-label">Simulation Score:</span>
-            <span class="metric-value">{{ solution.metrics.simulation_score|round(4) }}</span>
-          </div>
-        </div>
+      
       </div>
       <div class="solution-actions">
         <button class="button" onclick="viewSimulation({{ loop.index }})">View Simulation</button>

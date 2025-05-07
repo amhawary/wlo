@@ -9,9 +9,9 @@
             <thead>
                 <tr style="background-color: #222;">
                     <th>Operation Type</th>
-                    <th>Source Entity</th>
-                    <th>Destination Entity</th>
-                    <th>Frequency</th>
+                    <th>from_entity Entity</th>
+                    <th>to_entity Entity</th>
+                    <th>Frequency Ratio</th>
                     <th>Priority</th>
                     <th>Time Window</th>
                     <th>Remove</th>
@@ -27,9 +27,21 @@
                             <option value="inspect">Inspect</option>
                         </select>
                     </td>
-                    <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Source entity ID"></td>
-                    <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Destination entity ID"></td>
-                    <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Times per hour"></td>
+                    <td>
+                    <select style="width: 100%; padding: 0; margin: 0;">
+                    {% for entity in session.get('all_entities', []) %}
+                    <option value="{{ entity.id }}" data-name="{{ entity.type }}">{{ entity.type }} {{ entity.id }}</option>
+                    {% endfor %}
+                    </select>
+                    </td>
+                    <td>
+                    <select style="width: 100%; padding: 0; margin: 0;">
+                    {% for entity in session.get('all_entities', []) %}
+                    <option value="{{ entity.id }}" data-name="{{ entity.type }}">{{ entity.type }} {{ entity.id }}</option>
+                    {% endfor %}
+                    </select>
+                    </td>
+                    <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Times relative to all operations"></td>
                     <td>
                         <select style="width: 100%; padding: 0; margin: 0;">
                             <option value="low">Low</option>
@@ -81,8 +93,20 @@ function createRow() {
                 <option value="inspect">Inspect</option>
             </select>
         </td>
-        <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Source entity ID"></td>
-        <td><input type="text" class="input-cell" style="width: 100%;" placeholder="Destination entity ID"></td>
+        <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+            {% for entity in session.get('all_entities', []) %}
+            <option value="{{ entity.id }}" data-name="{{ entity.type }}">{{ entity.type }} {{ entity.id }}</option>
+            {% endfor %}
+            </select>
+            </td>
+            <td>
+            <select style="width: 100%; padding: 0; margin: 0;">
+            {% for entity in session.get('all_entities', []) %}
+            <option value="{{ entity.id }}" data-name="{{ entity.type }}">{{ entity.type }} {{ entity.id }}</option>
+            {% endfor %}
+            </select>
+        </td>
         <td><input type="number" class="input-cell" min="1" style="width: 100%;" placeholder="Times per hour"></td>
         <td>
             <select style="width: 100%; padding: 0; margin: 0;">
@@ -134,15 +158,15 @@ document.getElementById("operationsForm").addEventListener("submit", function (e
 
     rows.forEach(row => {
         const inputs = row.querySelectorAll("input, select");
-        const [type, source, destination, frequency, priority, timeWindow] = Array.from(inputs).map(el => el.value.trim());
+        const [type, from_entity, to_entity, frequency, priority, timeWindow] = Array.from(inputs).map(el => el.value.trim());
 
         // Skip empty rows
-        if (type === "" && source === "" && destination === "") return;
+        if (type === "" && from_entity === "" && to_entity === "") return;
 
         operations.push({
             type,
-            source,
-            destination,
+            from_entity,
+            to_entity,
             frequency: parseInt(frequency) || 1,
             priority,
             time_window: timeWindow

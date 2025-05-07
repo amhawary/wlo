@@ -20,12 +20,14 @@ def get_neighbors(pos, layout, aisle_width=1):
     
     return neighbors
 
-def astar(start, goal, layout, aisle_width=1):
+def astar(start_, goal_, layout, aisle_width=1):
     """A* pathfinding algorithm."""
-    if not start or not goal:
+    if not start_ or not goal_:
         return None
         
     # Initialize data structures
+    start = (start_[0], start_[1])
+    goal = (goal_[0], goal_[1])
     open_set = {start}
     came_from = {}
     g_score = {start: 0}

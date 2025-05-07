@@ -10,11 +10,16 @@ def get_fitness(layout, weights=None):
     # First try static metrics
     routes = []
     for operation in layout.operations:
-        from_coord = operation.from_entity
-        to_coord = operation.to_entity
-        path = astar(from_coord, to_coord, layout, layout.aisle_width)
-        if path:
-            routes.append(path)
+        temp_paths = []
+        from_coords = operation['from_entity']['positions']
+        to_coords = operation['to_entity']['positions']
+        for to_coord in to_coords:
+            for from_coord in from_coords:
+                path = astar(from_coord, to_coord, layout, layout.aisle_width)
+                if path:
+                    temp_paths.append(path)
+        if temp_paths != []:
+            routes.append(min(temp_paths, key=len))
         else:
             metrics = {
                 'travel_distance': 1.0,
@@ -41,27 +46,7 @@ def get_fitness(layout, weights=None):
     travel_distance = calc_avrg_distance(routes)
     congestion_risk = calc_congestion_risk(routes, layout.width, layout.length)
     nturns = calc_avrg_turns(routes)
-    
-    # Calculate clustering score based on entity types
-    entity_types = {}
-    for entity in layout.entities:
-        etype = entity['type']
-        if etype not in entity_types:
-            entity_types[etype] = []
-        entity_types[etype].append(entity['position'])
-    
-    # Calculate average distance between entities of same type
-    clustering = 0
-    total_pairs = 0
-    for positions in entity_types.values():
-        if len(positions) > 1:
-            for i in range(len(positions)):
-                for j in range(i + 1, len(positions)):
-                    dist = manhattan_distance(positions[i], positions[j])
-                    clustering += 1 / (dist + 1)  # Closer entities = higher score
-                    total_pairs += 1
-    
-    clustering = clustering / total_pairs if total_pairs > 0 else 0
+    clustering = calc_avrg_clustering_category(layout)
 
     # Calculate utility access
     utility_access = calc_utility_access(layout)
@@ -207,20 +192,62 @@ def calc_space_utilisation(width, length, routes, layout):
     print(l)
     return
 
-def calc_safety():
-    pass
 
-def calc_avrg_clustering(layout):
-    total_cluster_score = 0
+def calc_avrg_clustering_type(layout):
+    # Calculate clustering score based on entity types
+    entity_types = {}
+    for entity in layout.entities:
+        etype = entity['type']
+        if etype not in entity_types:
+            entity_types[etype] = []
+        entity_types[etype].append(entity['positions'])
+    
+    # Calculate average distance between entities of same type
+    clustering = 0
+    total_pairs = 0
+    for positions in entity_types.values():
+        if len(positions) > 1:
+            for positions in entity_types.values():
+                if len(positions) > 1:
+                    for i in range(len(positions)):
+                        xi_avg =  sum(x for x, y in positions[i]) / len(positions[i])
+                        yi_avg = sum(y for x, y in positions[i]) / len(positions[i])
+                        for j in range(i + 1, len(positions)):
+                            xj_avg =  sum(x for x, y in positions[j]) / len(positions[j])
+                            yj_avg = sum(y for x, y in positions[j]) / len(positions[j])
+                            dist = manhattan_distance((xi_avg, yi_avg), (xj_avg, yj_avg))
+                            clustering += 1 / (dist + 1)  # Closer entities = higher score
+                            total_pairs += 1
+    
+    clustering = clustering / total_pairs if total_pairs > 0 else 0
 
-    for category in layout.utilities.keys():
-        entities_in_category = layout.get_category_entities()
-        for i in range(len(entities_in_category)):
-            for j in range(i+1, len(entities_in_category)):
-                pos1 = entities_in_category[i].position
-                pos2 = entities_in_category[j].position
-                dist = manhattan_distance(pos1, pos2)
-                total_cluster_score += 1 / (dist + 1)
+
+def calc_avrg_clustering_category(layout):
+    # Calculate clustering score based on entity category
+    entity_types = {}
+    for entity in layout.entities:
+        etype = entity['category']
+        if etype not in entity_types:
+            entity_types[etype] = []
+        entity_types[etype].append(entity['positions'])
+    
+    # Calculate average distance between entities of same category
+    clustering = 0
+    total_pairs = 0
+    for positions in entity_types.values():
+        if len(positions) > 1:
+            for i in range(len(positions)):
+                xi_avg =  sum(x for x, y in positions[i]) / len(positions[i])
+                yi_avg = sum(y for x, y in positions[i]) / len(positions[i])
+                for j in range(i + 1, len(positions)):
+                    xj_avg =  sum(x for x, y in positions[j]) / len(positions[j])
+                    yj_avg = sum(y for x, y in positions[j]) / len(positions[j])
+                    dist = manhattan_distance((xi_avg, yi_avg), (xj_avg, yj_avg))
+                    clustering += 1 / (dist + 1)  # Closer entities = higher score
+                    total_pairs += 1
+    
+    clustering = clustering / total_pairs if total_pairs > 0 else 0
+    return clustering
 
 def calc_utility_access(layout):
     total_utility_score = 0
@@ -233,10 +260,15 @@ def calc_utility_access(layout):
             entity_score = 0
             
             # Get entity's position
-            entity_pos = entity.get('position')
-            if not entity_pos:
+            positions = entity.get('positions')
+            if not positions:
                 continue
-                
+            
+            if len(positions) == 1:
+                entity_pos = (positions[0][0], positions[0][1])
+            else:
+                entity_pos = ((sum([p[0] for p in positions])/len(positions))),(sum([p[1] for p in positions])/len(positions))
+
             # For each utility type this entity depends on
             for utility_type in entity['depends_on']:
                 # Find the nearest utility point of this type

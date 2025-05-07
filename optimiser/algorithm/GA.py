@@ -17,11 +17,12 @@ class GA:
         self.generation = 0
         self.best_fitness_history = []
         self.builder = None
+
         # Add new tracking attributes
         self.generation_fitness_metrics = []  # List of dictionaries for each generation
         self.current_generation_metrics = []  # List of individual metrics for current generation
 
-    def initialize_population(self):
+    def init_population(self):
         """Initialize the population using the Builder."""
         self.population = []
         self.builder = self.base_layout.builder
@@ -29,187 +30,75 @@ class GA:
         
         for _ in range(self.population_size):
             new_layout = copy.deepcopy(self.base_layout)
-            if self.builder.randomize_layout():
+            if self.builder.randomise_layout():
                 self.population.append(new_layout)
             else:
                 # If we couldn't find a valid layout, use the base layout
                 self.population.append(copy.deepcopy(self.base_layout))
-
-    def _find_clusters(self, layout):
-        """Find clusters of entities based on type and proximity."""
-        clusters = []
-        used_entities = set()
-        
-        # Parameters for clustering
-        proximity_threshold = 3  # Maximum distance between entities in a cluster
-        
-        for i, entity in enumerate(layout.auto_placed_entities):
-            if i in used_entities:
-                continue
-            
-            # Start a new cluster
-            cluster = [(i, entity)]
-            used_entities.add(i)
-            
-            # Find nearby entities of the same type
-            for j, other in enumerate(layout.auto_placed_entities):
-                if j in used_entities:
-                    continue
-                
-                if entity['type'] == other['type']:
-                    pos1 = entity['position']
-                    pos2 = other['position']
-                    distance = abs(pos1[0] - pos2[0]) + abs(pos1[1] - pos2[1])
-                    
-                    if distance <= proximity_threshold:
-                        cluster.append((j, other))
-                        used_entities.add(j)
-            
-            clusters.append(cluster)
-        
-        return clusters
-
+    
     def crossover(self, parent1, parent2):
-        """Create a child layout by combining two parents using cluster-aware crossover."""
+        """Create a child layout by crossing over two parents."""
         child = copy.deepcopy(parent1)
-        
-        # Find clusters in both parents
-        parent1_clusters = self._find_clusters(parent1)
-        parent2_clusters = self._find_clusters(parent2)
-        
-        # Crossover probabilities
-        cluster_swap_prob = 0.7  # High probability to swap entire clusters
-        single_entity_prob = 0.1  # Low probability to swap single entities
-        
-        # Try to swap clusters first
-        for cluster in parent1_clusters:
-            if random.random() < cluster_swap_prob:
-                # Find a matching cluster in parent2 (same entity types)
-                cluster_type = cluster[0][1]['type']
-                matching_clusters = [c for c in parent2_clusters 
-                                  if c[0][1]['type'] == cluster_type]
-                
-                if matching_clusters:
-                    # Swap positions with a random matching cluster
-                    parent2_cluster = random.choice(matching_clusters)
-                    for (i1, e1), (i2, e2) in zip(cluster, parent2_cluster):
-                        child.auto_placed_entities[i1]['position'] = e2['position']
-        
-        # Then maybe swap some individual entities
-        for i, entity in enumerate(child.auto_placed_entities):
-            if random.random() < single_entity_prob:
-                # Find entities of the same type in parent2
-                same_type = [(j, e) for j, e in enumerate(parent2.auto_placed_entities)
-                            if e['type'] == entity['type']]
-                if same_type:
-                    j, other = random.choice(same_type)
-                    child.auto_placed_entities[i]['position'] = other['position']
-        
-        # Repair the child layout
-        builder = child.builder
-        builder.set_astar(astar)
-        if not builder.has_valid_paths():
-            # Try to repair by adjusting cluster positions
-            clusters = self._find_clusters(child)
-            for cluster in clusters:
-                # Try to move the entire cluster to a new valid location
-                available = list(builder.get_available_positions())
-                if available:
-                    base_pos = random.choice(available)
-                    old_positions = []
-                    
-                    # Move all entities in cluster relative to the new base position
-                    for i, entity in cluster:
-                        old_positions.append(entity['position'])
-                        dx = entity['position'][0] - cluster[0][1]['position'][0]
-                        dy = entity['position'][1] - cluster[0][1]['position'][1]
-                        new_x = base_pos[0] + dx
-                        new_y = base_pos[1] + dy
-                        
-                        if 0 <= new_x < child.width and 0 <= new_y < child.length:
-                            entity['position'] = (new_x, new_y)
-                    
-                    # If still invalid, revert the cluster
-                    if not builder.has_valid_paths():
-                        for (i, entity), old_pos in zip(cluster, old_positions):
-                            entity['position'] = old_pos
-            
-            # If still invalid after repairs, return one of the parents
-            if not builder.has_valid_paths():
-                return random.choice([parent1, parent2])
-        
-        return child
+        child.delete_positions()
+
+        auto_entities = child.auto_placed_entities
+        random.shuffle(auto_entities)
+
+        for entity in auto_entities:
+            # Choose entity shape from fitter parent
+            source = parent1 if random.random() < 0.5 else parent2
+            if entity['id'] in source.entities:
+                entity_data = source.entities[entity['id']]
+                entity['width'] = entity_data['width']
+                entity['length'] = entity_data['length']
+
+            # Get available positions that respect constraints
+            available = []
+            for pos in child.builder.get_available_positions():
+                if child.builder.is_position_valid(pos, entity):
+                    available.append(pos)
+
+            if not available:
+                return parent1 if (parent1.fitness or 0) >= (parent2.fitness or 0) else parent2
+
+            # Choose random valid position
+            pos = random.choice(available)
+            entity_cells = []
+            for x in range(pos[0], pos[0] + entity['width']):
+                for y in range(pos[1], pos[1] + entity['length']):
+                    entity_cells.append((x, y))
+
+            positions = {}
+            for e in entity_cells:
+                positions[str(e)[1:-1]] = entity['id']
+
+            child.add_positions(positions)
+
+        child.refresh_operations()
+
+        if child.builder.has_valid_paths():
+            return child
+
+        # Fallback if no valid paths
+        return parent1 if (parent1.fitness or 0) >= (parent2.fitness or 0) else parent2
 
     def mutate(self, layout):
-        """Mutate a layout by moving entities, preserving clusters when possible."""
-        builder = layout.builder
-        builder.set_astar(astar)
-        
-        # Find existing clusters
-        clusters = self._find_clusters(layout)
-        
-        # Mutation probabilities
-        cluster_mutation_prob = 0.3  # Probability to mutate an entire cluster
-        single_mutation_prob = 0.1   # Lower probability to mutate single entities
-        
-        # Try to mutate clusters first
-        for cluster in clusters:
-            if random.random() < cluster_mutation_prob:
-                # Get all valid positions for the base entity
-                available_positions = list(builder.get_available_positions())
-                if not available_positions:
-                    continue
-                
-                # Save old positions in case we need to revert
-                old_positions = []
-                base_pos = random.choice(available_positions)
-                
-                # Move all entities in cluster relative to the new base position
-                for i, entity in cluster:
-                    old_positions.append(entity['position'])
-                    dx = entity['position'][0] - cluster[0][1]['position'][0]
-                    dy = entity['position'][1] - cluster[0][1]['position'][1]
-                    new_x = base_pos[0] + dx
-                    new_y = base_pos[1] + dy
-                    
-                    if 0 <= new_x < layout.width and 0 <= new_y < layout.length:
-                        entity['position'] = (new_x, new_y)
-                
-                # If the new positions make the layout invalid, revert
-                if not builder.has_valid_paths():
-                    for (i, entity), old_pos in zip(cluster, old_positions):
-                        entity['position'] = old_pos
-        
-        # Then try to mutate some individual entities
-        for i, entity in enumerate(layout.auto_placed_entities):
-            if random.random() < single_mutation_prob:
-                available = [pos for pos in builder.get_available_positions() 
-                           if builder.is_position_valid(pos, entity)]
-                if available:
-                    old_pos = entity['position']
-                    entity['position'] = random.choice(available)
-                    
-                    if not builder.has_valid_paths():
-                        entity['position'] = old_pos
+        return layout
 
     def evaluate_fitness(self, layout):
         """Evaluate the fitness of a layout and return both total fitness and individual metrics."""
-        try:
-            fitness = self.function(layout)
-            if fitness is None:
-                return -1, {}
-            
-            # Get individual metrics (assuming the function returns a tuple of (total_fitness, metrics_dict))
-            if isinstance(fitness, tuple):
-                total_fitness, metrics = fitness
-            else:
-                total_fitness = fitness
-                metrics = {'total_fitness': fitness}
-            
-            return total_fitness, metrics
-        except Exception as e:
-            print(f"Error evaluating fitness: {e}")
+        fitness = self.function(layout)
+        if fitness is None:
             return -1, {}
+        
+        # Get individual metrics (assuming the function returns a tuple of (total_fitness, metrics_dict))
+        if isinstance(fitness, tuple):
+            total_fitness, metrics = fitness
+        else:
+            total_fitness = fitness
+            metrics = {'total_fitness': fitness}
+        
+        return total_fitness, metrics
 
     def evolve(self):
         """Evolve the population for one generation."""
@@ -238,6 +127,8 @@ class GA:
         
         # Create new population
         new_population = elites.copy()
+
+        print('Best Fitness is', best_fitness)
         
         # Fill rest of population
         while len(new_population) < self.population_size:
@@ -278,5 +169,19 @@ class GA:
         return self.current_generation_metrics
     
 
-    def run_optimisation(self):
-        pass
+    def run(self):
+        self.init_population()
+
+        for i in range(25):  # 20 generations
+            self.evolve()
+            print(f"Generation {i+1} done.")
+
+        best_layouts = self.best_layouts()
+        
+        self.layout1=best_layouts[0].to_dict()
+        self.layout2=best_layouts[1].to_dict()
+        self.layout3=best_layouts[2].to_dict()
+
+
+
+
